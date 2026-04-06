@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "rocm-migrate"
+version = "0.1.0"
+description = "CUDA-to-ROCm migration agent using AutoGen multi-agent framework"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pyautogen>=0.2.0b2",
+    "typer>=0.12",
+    "rich>=13.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+claude = ["anthropic>=0.30"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+rocm-migrate = "cli.main:app"
+
+[tool.setuptools.packages.find]
+include = ["config*", "knowledge*", "agents*", "core*", "testing*", "cli*"]

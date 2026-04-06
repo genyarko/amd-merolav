@@ -1,0 +1,26 @@
+[
+  {
+    "model": "mistralai/Codestral-22B-v0.1",
+    "base_url": "http://localhost:8000/v1",
+    "api_key": "EMPTY",
+    "tags": ["self-hosted", "codestral"]
+  },
+  {
+    "model": "codestral-latest",
+    "base_url": "https://api.mistral.ai/v1",
+    "api_key": "YOUR_MISTRAL_API_KEY",
+    "tags": ["mistral", "fallback"]
+  },
+  {
+    "model": "deepseek-coder",
+    "base_url": "https://api.deepseek.com/v1",
+    "api_key": "YOUR_DEEPSEEK_API_KEY",
+    "tags": ["deepseek", "fallback"]
+  },
+  {
+    "model": "claude-sonnet-4-20250514",
+    "base_url": "https://api.anthropic.com/v1",
+    "api_key": "YOUR_ANTHROPIC_API_KEY",
+    "tags": ["claude", "optional"]
+  }
+]

@@ -1,0 +1,28 @@
+# Environment — never commit real keys
+.env
+
+# Claude Code session data
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Output
+rocm_output/
+
+# Test cache
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+nohup.out
