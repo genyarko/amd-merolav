@@ -141,6 +141,82 @@ DEFINE_MAP: dict[str, str] = {
     "cudaHostAllocWriteCombined": "hipHostMallocWriteCombined",
 }
 
+# ---------------------------------------------------------------------------
+# TensorRT → MIGraphX detailed migration hints
+# API paradigms differ significantly — TensorRT uses a builder pattern while
+# MIGraphX uses an ONNX-first workflow.  All marked low-confidence.
+# ---------------------------------------------------------------------------
+
+TENSORRT_MIGRAPHX_MAP: dict[str, tuple[str, str, float]] = {
+    # Python module
+    "tensorrt.Builder": (
+        "migraphx.parse_onnx",
+        "MIGraphX uses ONNX-first workflow: export model to ONNX, then parse. "
+        "No builder pattern equivalent",
+        0.4,
+    ),
+    "tensorrt.Logger": (
+        "# MIGraphX: no Logger class — errors go to stderr",
+        "Different error handling paradigm",
+        0.3,
+    ),
+    "tensorrt.Runtime": (
+        "migraphx.load",
+        "MIGraphX: use migraphx.load() for serialized models",
+        0.4,
+    ),
+    "trt.Builder": (
+        "migraphx.parse_onnx",
+        "Export to ONNX first, then migraphx.parse_onnx('model.onnx')",
+        0.4,
+    ),
+    "trt.Runtime": (
+        "migraphx.load",
+        "MIGraphX: migraphx.load('model.mxr')",
+        0.4,
+    ),
+    "trt.Logger": (
+        "# MIGraphX: no Logger equivalent",
+        "Different paradigm",
+        0.3,
+    ),
+    "tensorrt.OnnxParser": (
+        "migraphx.parse_onnx",
+        "MIGraphX parses ONNX directly — no separate parser class",
+        0.5,
+    ),
+    "ICudaEngine": (
+        "migraphx.program",
+        "MIGraphX program is the compiled model equivalent of a CUDA engine",
+        0.3,
+    ),
+    "IExecutionContext": (
+        "migraphx.program.run",
+        "MIGraphX: call program.run({input_dict}) instead of creating a context",
+        0.3,
+    ),
+    "builder.create_network": (
+        "migraphx.parse_onnx",
+        "MIGraphX: no network builder — use ONNX import instead",
+        0.3,
+    ),
+    "builder.build_engine": (
+        "program.compile(migraphx.get_target('gpu'))",
+        "MIGraphX: compile the parsed program for GPU target",
+        0.4,
+    ),
+    "context.execute_v2": (
+        "program.run",
+        "MIGraphX: program.run({name: migraphx.argument(data)})",
+        0.4,
+    ),
+    "context.execute_async_v2": (
+        "program.run",
+        "MIGraphX: run is synchronous; use HIP streams for async",
+        0.3,
+    ),
+}
+
 ENV_VAR_MAP: dict[str, str] = {
     "CUDA_VISIBLE_DEVICES": "HIP_VISIBLE_DEVICES",
     "CUDA_LAUNCH_BLOCKING": "HIP_LAUNCH_BLOCKING",
@@ -161,8 +237,14 @@ HEADER_MAP: dict[str, str] = {
 }
 
 
-def get_all_mappings() -> dict[str, tuple[str, str, float]]:
-    """Return all CUDA->HIP mappings combined."""
+def get_all_mappings(rocm_version: str | None = None) -> dict[str, tuple[str, str, float]]:
+    """Return all CUDA->HIP mappings combined.
+
+    If *rocm_version* is given (e.g. ``"6.0"``), mappings whose notes
+    indicate a minimum ROCm version higher than the target are excluded.
+    """
+    from knowledge.cuda_c_map import get_all_cuda_c_mappings
+
     all_maps: dict[str, tuple[str, str, float]] = {}
     all_maps.update(RUNTIME_API_MAP)
     all_maps.update(DRIVER_API_MAP)
@@ -170,4 +252,39 @@ def get_all_mappings() -> dict[str, tuple[str, str, float]]:
         all_maps[k] = (v, "", 1.0)
     for k, v in DEFINE_MAP.items():
         all_maps[k] = (v, "", 1.0)
+    all_maps.update(TENSORRT_MIGRAPHX_MAP)
+    all_maps.update(get_all_cuda_c_mappings())
+
+    if rocm_version:
+        all_maps = _filter_by_rocm_version(all_maps, rocm_version)
+
     return all_maps
+
+
+def _filter_by_rocm_version(
+    mappings: dict[str, tuple[str, str, float]],
+    target_version: str,
+) -> dict[str, tuple[str, str, float]]:
+    """Remove mappings that require a ROCm version higher than *target_version*.
+
+    Parses version strings like ``"ROCm 6.0+"`` from the notes field.
+    Mappings with no version requirement are always included.
+    """
+    import re
+
+    try:
+        target = tuple(int(x) for x in target_version.split("."))
+    except (ValueError, AttributeError):
+        return mappings  # unparseable target — return all
+
+    _ROCM_VER_RE = re.compile(r"ROCm\s+(\d+(?:\.\d+)?)\+?")
+
+    filtered: dict[str, tuple[str, str, float]] = {}
+    for symbol, (hip, notes, confidence) in mappings.items():
+        m = _ROCM_VER_RE.search(notes)
+        if m:
+            required = tuple(int(x) for x in m.group(1).split("."))
+            if required > target:
+                continue  # skip — requires newer ROCm
+        filtered[symbol] = (hip, notes, confidence)
+    return filtered

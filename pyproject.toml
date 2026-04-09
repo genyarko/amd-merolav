@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "rocm-migrate"
@@ -18,10 +18,17 @@ dependencies = [
 
 [project.optional-dependencies]
 claude = ["anthropic>=0.30"]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+watch = ["watchdog>=4.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "hypothesis>=6.0", "pytest-cov>=4.0"]
 
 [project.scripts]
 rocm-migrate = "cli.main:app"
 
 [tool.setuptools.packages.find]
 include = ["config*", "knowledge*", "agents*", "core*", "testing*", "cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "requires_llm: tests that need a live LLM backend (skipped in CI)",
+]

@@ -140,6 +140,42 @@ OPTIMIZATION_RULES: list[OptimizationRule] = [
         priority=2,
     ),
 
+    # CUDA Graphs / HIP Graphs
+    OptimizationRule(
+        trigger="cudaGraph",
+        category="Graphs",
+        suggestion=(
+            "HIP Graphs mirror the CUDA Graphs API (cudaGraph* → hipGraph*). "
+            "Most features available in ROCm 5.5+. Some newer CUDA 12 graph "
+            "features (memory allocation nodes) require ROCm 6.0+."
+        ),
+        priority=2,
+    ),
+
+    # CUB / hipCUB
+    OptimizationRule(
+        trigger="cub::",
+        category="Library",
+        suggestion=(
+            "CUB → hipCUB: namespace changes from cub:: to hipcub::, "
+            "headers from <cub/...> to <hipcub/...>. API is otherwise compatible.\n"
+            "  Install: included in ROCm toolkit"
+        ),
+        priority=2,
+    ),
+
+    # Warp size
+    OptimizationRule(
+        trigger="warpSize",
+        category="Architecture",
+        suggestion=(
+            "CRITICAL: AMD wavefront size is 64 on MI200/MI300 (vs NVIDIA warp "
+            "size 32). Code that hardcodes warp_size=32 WILL produce wrong "
+            "results. Audit all warp-level operations and shuffle intrinsics."
+        ),
+        priority=1,
+    ),
+
     # Environment variable
     OptimizationRule(
         trigger="CUDA_VISIBLE_DEVICES",

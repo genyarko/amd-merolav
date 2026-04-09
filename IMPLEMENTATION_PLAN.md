@@ -660,3 +660,502 @@ The final submission should include:
 | README + open-source cleanup | 1-2 hours |
 | Submission form + slide deck | 1 hour |
 | **Total remaining** | **~1.5-2 days** |
+
+---
+
+## Post-Hackathon Improvement Roadmap
+
+The following phases take the project from "impressive hackathon demo" to "production-grade daily-driver tool." They are ordered by impact and dependency — later phases build on earlier ones.
+
+---
+
+### Phase 7: Error Handling & Logging ✅
+
+**Goal**: Eliminate silent failures and make the tool debuggable in production use.
+
+**Steps**:
+
+1. **Add structured logging throughout the codebase**
+   - Create `core/logging.py` with a configured `logging.Logger` using Python's standard `logging` module
+   - Use `logging.getLogger(__name__)` in every module instead of printing or silently passing
+   - Map CLI `--verbose` to `DEBUG` level, normal mode to `INFO`, add `--quiet` for `WARNING`-only
+   - Log to both stderr (for terminal) and an optional rotating file (`--log-file`)
+
+2. **Fix silent exception swallowing**
+   - `core/analyzer.py`: Replace `except SyntaxError: pass` with logged warning + fallback explanation
+   - `agents/orchestrator.py`: Catch and log LLM API errors (timeout, rate limit, auth failure) with actionable messages
+   - `testing/runner.py`: Log subprocess stderr on non-zero exit codes
+
+3. **Add graceful degradation for LLM backends**
+   - In `agents/orchestrator.py`, wrap each agent call with retry logic (exponential backoff, max 3 retries)
+   - If the Planner backend is unreachable, fall back to a simpler prompt sent to the Executor model
+   - If all LLM backends fail, complete the migration with rule-based pass only and warn the user
+   - Add connection health check at CLI startup: `GET /v1/models` to verify backend availability before starting
+
+4. **Make timeouts configurable**
+   - Add `--planner-timeout` and `--test-timeout` CLI flags (currently hardcoded at 600s and 30s)
+   - Expose in `config/settings.py` as Pydantic fields with sensible defaults
+
+5. **Add input validation**
+   - Validate input file exists and is readable before starting pipeline
+   - Validate file is valid Python (or warn if not) before AST parsing
+   - Validate output directory is writable
+   - Validate API keys are set for the selected backend before making calls
+
+**Files to modify**: `core/analyzer.py`, `core/migrator.py`, `agents/orchestrator.py`, `agents/planner.py`, `agents/coder.py`, `testing/runner.py`, `cli/main.py`, `config/settings.py`
+**New files**: `core/logging.py`
+
+---
+
+### Phase 8: Multi-File & Project-Level Migration ✅
+
+**Goal**: Handle real-world projects where CUDA usage spans multiple files with cross-module dependencies.
+
+**Steps**:
+
+1. **Add directory traversal and file discovery**
+   - Extend `cli/main.py` to accept directories and glob patterns (e.g., `rocm-migrate src/**/*.py`)
+   - Add `--recursive` flag for directory inputs
+   - Add `--exclude` patterns (e.g., `--exclude "tests/*"`) to skip files
+   - Use `pathlib.Path.rglob()` for cross-platform file discovery
+
+2. **Build an import graph resolver**
+   - Create `core/import_graph.py` that:
+     - Parses all Python files in the project to build an import dependency graph
+     - Identifies which modules define CUDA symbols and which modules consume them
+     - Determines migration order (leaf dependencies first, then consumers)
+   - Use Python's `ast` module to extract `import` and `from ... import` statements
+   - Resolve relative imports using the project's package structure
+
+3. **Add cross-file symbol tracking**
+   - Extend `core/analyzer.py` with a `ProjectAnalyzer` class that:
+     - Runs `analyze_source()` on each file
+     - Tracks which CUDA symbols are exported (defined in `__all__` or at module scope)
+     - Tracks which files import those symbols
+     - Generates a `ProjectAnalysisReport` with per-file reports + dependency edges
+   - This enables migrating a CUDA utility module AND updating all its consumers
+
+4. **Implement project-level migration orchestration**
+   - Create `core/project_migrator.py` that:
+     - Takes a `ProjectAnalysisReport`
+     - Migrates files in dependency order (utilities first, then consumers)
+     - Passes cross-file context to the LLM agents (e.g., "this module's `init_cuda()` was renamed to `init_hip()`")
+     - Generates a project-level summary report
+
+5. **Add progress reporting for multi-file runs**
+   - Show a Rich progress bar with file count, current file, and per-file status
+   - Generate a summary table at the end: files processed, changes applied, warnings, errors
+
+**Files to modify**: `cli/main.py`, `core/analyzer.py`
+**New files**: `core/import_graph.py`, `core/project_migrator.py`
+
+---
+
+### Phase 9: Confidence Scoring & Migration Quality Metrics ✅
+
+**Goal**: Give users clear signals about which migrations are reliable and which need manual review.
+
+**Steps**:
+
+1. **Add confidence scores to every migration action**
+   - Extend `MigrationResult.applied` entries with a `confidence: float` field (0.0–1.0)
+   - Rule-based replacements from knowledge base: use the existing confidence values (most are 1.0)
+   - LLM-generated changes: assign confidence based on:
+     - Whether the Reviewer approved (0.9) or flagged concerns (0.5–0.7)
+     - Whether the Tester passed (boost +0.1) or failed (drop to 0.3)
+     - Whether the pattern matches a known mapping (boost +0.1)
+
+2. **Implement a migration quality report**
+   - Create `core/quality.py` with a `MigrationQualityReport` dataclass:
+     - `high_confidence`: list of changes with confidence >= 0.9
+     - `needs_review`: list of changes with confidence 0.5–0.89
+     - `low_confidence`: list of changes with confidence < 0.5
+     - `overall_score`: weighted average confidence across all changes
+   - Display in CLI output as a color-coded table (green/yellow/red)
+
+3. **Detect and flag false positives**
+   - In `core/analyzer.py`, add heuristics to distinguish CUDA API calls from coincidental name matches:
+     - Variable names containing "cuda" (e.g., `cuda_device_count = 4`) — not a CUDA API call
+     - Strings in comments or docstrings — informational, not functional
+     - CUDA references inside `try/except ImportError` blocks — already guarded
+   - Add a `is_false_positive: bool` field to `CudaUsage` entries
+
+4. **Generate a human-readable review checklist**
+   - After migration, output a markdown checklist of items needing manual review
+   - Include file path, line number, original code, migrated code, and reason for low confidence
+   - Optionally write to `rocm_output/REVIEW_CHECKLIST.md`
+
+**Files to modify**: `core/analyzer.py`, `core/migrator.py`, `agents/orchestrator.py`, `cli/main.py`
+**New files**: `core/quality.py`
+
+---
+
+### Phase 10: CUDA C/C++ Kernel Support ✅
+
+**Goal**: Handle `.cu` files and inline CUDA C code in Python strings, even if full automatic migration isn't possible.
+
+**Steps**:
+
+1. **Add CUDA C/C++ pattern detection**
+   - Extend `core/analyzer.py` to recognize `.cu` and `.cuh` file extensions
+   - Add regex patterns for CUDA C constructs:
+     - Kernel declarations: `__global__ void`, `__device__`, `__shared__`
+     - Kernel launches: `<<<gridDim, blockDim>>>`
+     - CUDA runtime calls in C: `cudaMalloc`, `cudaMemcpy`, etc.
+     - CUDA-specific types: `dim3`, `cudaStream_t`, `cudaEvent_t`
+   - Detect inline CUDA C in Python strings (e.g., pycuda `SourceModule("")` blocks)
+
+2. **Build a CUDA C → HIP C mapping layer**
+   - Create `knowledge/cuda_c_map.py` with C-specific mappings:
+     - `__global__` → `__global__` (same in HIP)
+     - `<<<grid, block>>>` → `hipLaunchKernelGGL()` macro
+     - `cudaMalloc` → `hipMalloc` (same as Python mappings, but in C context)
+     - CUDA headers: `cuda_runtime.h` → `hip/hip_runtime.h`
+     - Texture/surface API mappings (complex, low confidence)
+
+3. **Implement basic `.cu` file migration**
+   - Create `core/cuda_c_migrator.py` that:
+     - Applies high-confidence C-level replacements (headers, runtime API calls, types)
+     - Flags complex patterns (texture memory, cooperative groups, warp intrinsics) for manual review
+     - Suggests running AMD's `hipify-perl` or `hipify-clang` for full automated conversion
+   - For inline CUDA C in Python strings: extract, migrate, and re-embed
+
+4. **Integrate HIPIFY as an optional backend**
+   - If `hipify-perl` is available on the system, offer to run it as a first pass on `.cu` files
+   - Parse HIPIFY output and feed it into the LLM agents for refinement
+   - Add `--use-hipify` CLI flag
+
+5. **Add `.cu` file support to the CLI**
+   - Accept `.cu` and `.cuh` files as input alongside `.py`
+   - When processing a project directory, discover and process all CUDA file types
+   - Show C-specific migration stats in the summary
+
+**Files to modify**: `core/analyzer.py`, `cli/main.py`
+**New files**: `knowledge/cuda_c_map.py`, `core/cuda_c_migrator.py`
+
+---
+
+### Phase 11: Caching & Incremental Migration ✅
+
+**Goal**: Avoid redundant LLM calls, support iterative workflows, and maintain an audit trail.
+
+**Steps**:
+
+1. **Implement a migration cache**
+   - Create `core/cache.py` with a file-based cache (JSON or SQLite in `.rocm_cache/`):
+     - Key: SHA-256 hash of (source code + analysis report + backend model)
+     - Value: migration result (migrated code, applied changes, confidence scores)
+   - Check cache before invoking LLM agents; use cached result if source hasn't changed
+   - Add `--no-cache` CLI flag to force fresh migration
+   - Add `--clear-cache` CLI flag to wipe the cache
+
+2. **Add incremental migration support**
+   - Track previously migrated files in `.rocm_cache/manifest.json`:
+     - File path, source hash, last migration timestamp, result hash
+   - On re-run, only re-migrate files whose source hash has changed
+   - Show "X files unchanged, Y files re-migrated" in CLI output
+
+3. **Build a migration audit log**
+   - Create `core/audit.py` that writes a structured log to `rocm_output/migration_log.json`:
+     - Timestamp, input file, backend used, changes applied, confidence scores, warnings
+     - Agent conversation summary (if `--verbose`)
+   - Append to the log on each run (don't overwrite)
+   - Add `--show-history` CLI flag to display migration history for a file
+
+4. **Add Planner output caching specifically**
+   - The Planner (DeepSeek-R1) is the slowest and most expensive call
+   - Cache Planner reasoning output separately, keyed by (source code hash + remaining issues hash)
+   - Reuse cached plan even if Executor/Reviewer models change
+
+**Files to modify**: `agents/orchestrator.py`, `agents/planner.py`, `cli/main.py`
+**New files**: `core/cache.py`, `core/audit.py`
+
+---
+
+### Phase 12: Expanded Test Coverage ✅
+
+**Goal**: Catch regressions, validate edge cases, and enable confident refactoring.
+
+**Steps**:
+
+1. **Add end-to-end tests with mocked LLM responses**
+   - Create `tests/test_e2e.py` that:
+     - Mocks the OpenAI-compatible API endpoint (using `unittest.mock.patch` or `responses` library)
+     - Feeds predefined LLM responses for each agent round
+     - Verifies the full pipeline produces expected output for each fixture
+   - Cover scenarios: simple migration (rule-based only), complex migration (agents needed), all-backends-down fallback
+
+2. **Add edge case tests for the analyzer**
+   - `tests/test_analyzer_edge_cases.py`:
+     - CUDA references inside comments and docstrings (should not trigger migration)
+     - Variable names containing "cuda" (e.g., `is_cuda_available = True`)
+     - Nested template syntax that looks like kernel launches
+     - `from pycuda.compiler import *` (wildcard imports)
+     - Files with syntax errors (should fall back to regex gracefully)
+     - Empty files and files with no CUDA patterns
+
+3. **Add property-based tests for the migrator**
+   - Use `hypothesis` library to generate random valid Python code
+   - Property: migrated code should always be valid Python (parseable by `ast.parse`)
+   - Property: migrating already-migrated code should be a no-op (idempotency)
+   - Property: migration should never increase the number of CUDA references
+
+4. **Add regression tests for known issues**
+   - Create `tests/fixtures/` entries for each known edge case:
+     - Multi-line string containing CUDA C kernel code
+     - Conditional CUDA imports (`try: import pycuda except: pass`)
+     - Mixed CUDA and ROCm code (partially migrated files)
+     - Very large files (1000+ lines) to test chunking behavior
+   - Pin expected output for each fixture
+
+5. **Add agent interaction tests**
+   - Create `tests/test_agent_interactions.py`:
+     - Test that Reviewer feedback is correctly passed back to Coder
+     - Test that Tester termination condition (`ALL_TESTS_PASSED`) works
+     - Test max_rounds enforcement
+     - Test graceful handling of malformed LLM responses
+
+6. **Add CI configuration**
+   - Create `.github/workflows/test.yml`:
+     - Run `pytest` on push and PR
+     - Test on Python 3.10, 3.11, 3.12
+     - Skip LLM-dependent tests in CI (mark with `@pytest.mark.requires_llm`)
+     - Report code coverage with `pytest-cov`
+
+**Files to modify**: `tests/test_analyzer.py`, `tests/test_migrator.py`
+**New files**: `tests/test_e2e.py`, `tests/test_analyzer_edge_cases.py`, `tests/test_agent_interactions.py`, `tests/conftest.py` (shared fixtures), `.github/workflows/test.yml`
+**New dependencies**: `hypothesis`, `pytest-cov`, `responses` (or `aioresponses`)
+
+---
+
+### Phase 13: Validation Improvements ✅
+
+**Goal**: Move beyond AST-only checks to give users higher assurance that migrated code actually works.
+
+**Steps**:
+
+1. **Add optional real-execution validation against ROCm runtime**
+   - Extend `testing/runner.py` with a `execute_on_rocm()` mode:
+     - Detect if a real ROCm/HIP runtime is available (`torch.cuda.is_available()` on a ROCm system)
+     - If available, run migrated code in a subprocess with real GPU access
+     - Capture and report runtime errors, CUDA/HIP errors, incorrect results
+   - Add `--validate-on-gpu` CLI flag (disabled by default, requires AMD hardware)
+
+2. **Add semantic equivalence checking**
+   - Create `testing/equivalence.py`:
+     - For tensor operations: run both original (CUDA) and migrated (ROCm) code on CPU
+     - Compare output tensors with `torch.allclose()` (configurable tolerance)
+     - Report semantic mismatches with the specific operation and tensor values
+   - This catches cases where migration changes behavior, not just syntax
+
+3. **Enhance AST validators with pattern-aware checks**
+   - Add validators for:
+     - Mixed CUDA/ROCm imports (partially migrated state)
+     - Orphaned environment variables (e.g., `HIP_VISIBLE_DEVICES` set but never used)
+     - Incompatible library combinations (e.g., `import tensorrt` alongside `import migraphx`)
+     - Deprecated ROCm APIs (check against a version-specific deprecation list)
+
+4. **Add a validation summary with actionable feedback**
+   - Instead of just PASS/FAIL, provide:
+     - What was checked and the result
+     - For failures: specific line, expected vs actual, suggested fix
+     - Severity levels: ERROR (will crash), WARNING (may behave differently), INFO (cosmetic)
+
+**Files to modify**: `testing/runner.py`, `testing/validators.py`, `cli/main.py`
+**New files**: `testing/equivalence.py`
+
+---
+
+### Phase 14: CLI / UX Enhancements ✅
+
+**Goal**: Make the tool pleasant and efficient for daily use by developers.
+
+**Steps**:
+
+1. **Add interactive mode**
+   - Add `--interactive` CLI flag that shows each proposed change and prompts accept/reject/edit:
+     - Display the change with context (3 lines before/after)
+     - Options: `[y]es / [n]o / [e]dit / [a]ll / [q]uit`
+     - Rejected changes are logged for review
+   - Use Rich's `Prompt` and `Confirm` for terminal UI
+
+2. **Add dry-run mode with summary table**
+   - Add `--dry-run` flag (alias for existing `--diff-only` but with enhanced output):
+     - Summary table: file, # changes, confidence distribution, estimated complexity
+     - Per-change table: line, original, replacement, confidence, category
+     - Total migration effort estimate: "X high-confidence, Y need review, Z need manual work"
+
+3. **Add watch mode for iterative development**
+   - Add `--watch` flag that monitors input files for changes using `watchdog` library
+   - On file change: re-analyze, re-migrate (using cache for unchanged portions), re-validate
+   - Display incremental updates in the terminal
+   - Useful when developers are manually fixing low-confidence items
+
+4. **Support glob patterns for input**
+   - Accept patterns like `rocm-migrate "src/**/*.py"` and `rocm-migrate src/ --include "*.py" --exclude "test_*"`
+   - Display matched files before starting and confirm with user
+
+5. **Add output format options**
+   - `--format diff` (default): unified diff with Rich highlighting
+   - `--format json`: structured JSON output for programmatic consumption
+   - `--format markdown`: migration report in markdown (for PRs/docs)
+   - `--format patch`: standard `.patch` file that can be applied with `git apply`
+
+6. **Add shell completions**
+   - Use Typer's built-in completion generation for bash/zsh/fish/PowerShell
+   - Document installation in README
+
+**Files to modify**: `cli/main.py`, `config/settings.py`
+**New dependencies**: `watchdog` (for watch mode)
+
+---
+
+### Phase 15: Knowledge Base Expansion ✅
+
+**Goal**: Cover the full breadth of the CUDA ecosystem so fewer patterns fall through to LLM agents.
+
+**Steps**:
+
+1. **Add Thrust → rocThrust mappings**
+   - In `knowledge/library_map.py`, add detailed API mappings:
+     - `thrust::device_vector` → `thrust::device_vector` (works with rocThrust)
+     - `thrust::sort`, `thrust::reduce`, `thrust::transform` — same API, different backend
+     - Header mappings: `<thrust/sort.h>` → same (rocThrust is API-compatible)
+   - Add to `knowledge/cuda_rocm_map.py` for any divergent APIs
+
+2. **Add CUB → hipCUB mappings**
+   - `cub::DeviceReduce` → `hipcub::DeviceReduce`
+   - `cub::BlockReduce` → `hipcub::BlockReduce`
+   - Header: `<cub/cub.cuh>` → `<hipcub/hipcub.hpp>`
+   - Namespace: `cub::` → `hipcub::`
+
+3. **Add CUDA Graphs → HIP Graphs mappings**
+   - `cudaGraphCreate` → `hipGraphCreate`
+   - `cudaStreamBeginCapture` → `hipStreamBeginCapture`
+   - `cudaGraphLaunch` → `hipGraphLaunch`
+   - All `cudaGraph*` → `hipGraph*` (consistent naming pattern)
+   - Add notes about feature parity gaps (some HIP Graph features lag behind CUDA)
+
+4. **Add TensorRT → MIGraphX migration hints**
+   - `import tensorrt as trt` → `import migraphx`
+   - `trt.Builder` → `migraphx.parse_onnx` (different API paradigm)
+   - `trt.Runtime` → `migraphx.load` / `migraphx.run`
+   - Mark these as low-confidence (API paradigms differ significantly)
+   - Add optimization note: export to ONNX first, then use MIGraphX
+
+5. **Add cooperative groups and warp intrinsics mappings**
+   - `cooperative_groups::thread_block` → HIP equivalent
+   - `__shfl_sync`, `__shfl_down_sync` → `__shfl`, `__shfl_down` (HIP warp intrinsics)
+   - `__ballot_sync` → `__ballot`
+   - Mark warp-size differences: NVIDIA warp = 32, AMD wavefront = 64 (MI300X) — flag this as a critical behavioral difference
+
+6. **Add version-aware mappings**
+   - Some mappings depend on ROCm version (e.g., ROCm 5.x vs 6.x vs 7.x)
+   - Add `min_rocm_version` field to mapping entries
+   - Add `--rocm-version` CLI flag (default: latest)
+   - Filter out mappings not available in the target ROCm version
+
+**Files to modify**: `knowledge/cuda_rocm_map.py`, `knowledge/library_map.py`, `knowledge/torch_cuda_map.py`, `knowledge/optimizations.py`
+**New files**: `knowledge/cuda_c_map.py` (if not created in Phase 10)
+
+---
+
+### Phase 16: Smart Context Handling for Large Files ✅
+
+**Goal**: Handle files of any size without overflowing LLM context windows.
+
+**Steps**:
+
+1. **Implement function-level chunking**
+   - Create `core/chunker.py` that:
+     - Parses the file's AST to identify top-level functions, classes, and module-level code
+     - Splits the file into chunks, each containing one logical unit + its imports/dependencies
+     - Tracks which chunks contain CUDA patterns (skip clean chunks)
+   - Respect LLM context limits: default chunk size = 4000 tokens, configurable via `--chunk-size`
+
+2. **Add chunk-aware migration**
+   - Modify `agents/orchestrator.py` to:
+     - Migrate each chunk independently through the agent pipeline
+     - Pass shared context (imports, class definitions, global variables) to each chunk
+     - Reassemble chunks into the final migrated file
+   - Preserve original file structure (comments, whitespace, ordering)
+
+3. **Implement context prioritization**
+   - When a file exceeds context limits even after chunking:
+     - Prioritize chunks with CUDA patterns
+     - Include only relevant knowledge base entries (not the full mapping)
+     - Summarize the analysis report instead of passing it verbatim
+   - Add a `core/context_budget.py` that estimates token usage and trims inputs accordingly
+
+4. **Add streaming output for large files**
+   - Show migration progress per-chunk in the CLI
+   - Display partial results as chunks complete (don't wait for the full file)
+   - Allow interruption and resumption (save completed chunks to cache)
+
+**Files to modify**: `agents/orchestrator.py`, `cli/main.py`
+**New files**: `core/chunker.py`, `core/context_budget.py`
+
+---
+
+### Phase 17: Packaging & Distribution
+
+**Goal**: Make the tool installable via pip and runnable anywhere with minimal setup.
+
+**Steps**:
+
+1. **Add proper Python packaging**
+   - Update `pyproject.toml` with:
+     - `[project.scripts]` entry: `rocm-migrate = "cli.main:app"` so the tool installs as a CLI command
+     - Proper classifiers, keywords, and project URLs
+     - Version management (start with `0.2.0` post-hackathon)
+   - Add `__init__.py` files to all packages if missing
+   - Add `__main__.py` to root package so `python -m rocm_migrate` works
+   - Test: `pip install -e .` followed by `rocm-migrate --help`
+
+2. **Create a Docker image**
+   - Create `Dockerfile` with:
+     - Base: `rocm/pytorch:latest` (includes ROCm runtime + PyTorch)
+     - Install the tool and dependencies
+     - Default entrypoint: `rocm-migrate`
+   - Create `docker-compose.yml` for easy local use:
+     - Mount input directory as volume
+     - Pass through GPU devices for real validation
+   - Publish to Docker Hub / GitHub Container Registry
+
+3. **Add a GitHub Actions release workflow**
+   - `.github/workflows/release.yml`:
+     - Trigger on version tag push (`v*.*.*`)
+     - Build and publish to PyPI
+     - Build and push Docker image
+     - Create GitHub Release with changelog
+
+4. **Add platform-specific installation docs**
+   - Linux (native ROCm): `pip install rocm-migrate`
+   - macOS/Windows (no ROCm, API-only mode): `pip install rocm-migrate` with `--backend mistral`
+   - Docker (with GPU): `docker run --device /dev/kfd --device /dev/dri rocm-migrate input.py`
+   - AMD Developer Cloud: pre-install script for MI300X instances
+
+**Files to modify**: `pyproject.toml`, `README.md`
+**New files**: `Dockerfile`, `docker-compose.yml`, `.github/workflows/release.yml`, `__main__.py`
+
+---
+
+## Improvement Roadmap Summary
+
+| Phase | Focus Area | Priority | Complexity | Key Deliverable |
+|-------|-----------|----------|------------|-----------------|
+| 7 | Error Handling & Logging | **Critical** | Low | Debuggable, resilient pipeline |
+| 8 | Multi-File Migration | **Critical** | High | Project-level migration support |
+| 9 | Confidence Scoring | **Critical** | Medium | Actionable migration quality metrics |
+| 10 | CUDA C/C++ Support | High | High | `.cu` file analysis and migration |
+| 11 | Caching & Incremental | High | Medium | Fast re-runs, audit trail |
+| 12 | Expanded Test Coverage | High | Medium | CI-ready test suite with 90%+ coverage |
+| 13 | Validation Improvements | Medium | Medium | Real-execution and equivalence testing |
+| 14 | CLI / UX Enhancements | Medium | Medium | Interactive mode, watch, output formats |
+| 15 | Knowledge Base Expansion | Medium | Low | Broader CUDA ecosystem coverage |
+| 16 | Large File Handling | Medium | High | Chunk-based migration for any file size |
+| 17 | Packaging & Distribution | Low | Low | pip install, Docker, CI/CD |
+
+**Recommended implementation order**: 7 → 12 → 9 → 8 → 11 → 15 → 10 → 13 → 14 → 16 → 17
+
+Start with error handling (Phase 7) and tests (Phase 12) because every subsequent phase benefits from logging and regression protection. Then confidence scoring (Phase 9) and multi-file support (Phase 8) deliver the most user-visible value. The rest can be tackled in any order based on user demand.

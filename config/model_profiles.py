@@ -19,7 +19,7 @@ def get_planner_config(settings: Settings) -> dict[str, Any]:
                 "model": settings.planner_model,
                 "base_url": settings.planner_base_url,
                 "api_key": "EMPTY",
-                "timeout": 600,  # 10 min — R1 does long chain-of-thought
+                "timeout": settings.planner_timeout,  # configurable via --planner-timeout
                 "price": [0, 0],  # self-hosted, suppress ag2 cost warning
             }
         ],

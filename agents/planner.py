@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import time
+
 from autogen.oai import OpenAIWrapper
 
 from config.model_profiles import get_planner_config
 from config.settings import Settings
 from core.analyzer import AnalysisReport
+from core.logging import get_logger
 from core.migrator import MigrationResult
+
+logger = get_logger(__name__)
 
 PLANNER_SYSTEM_PROMPT = """\
 You are a senior GPU software architect specializing in CUDA-to-ROCm migrations.
@@ -88,6 +93,10 @@ Produce a step-by-step migration plan for the Executor to implement.
 """
 
 
+_MAX_RETRIES = 3
+_RETRY_BACKOFF = (2, 5, 10)  # seconds between retries
+
+
 def run_planner(
     original_code: str,
     migration_result: MigrationResult,
@@ -95,11 +104,41 @@ def run_planner(
     settings: Settings,
     verbose: bool = False,
     console: "Console | None" = None,
+    cache: "MigrationCache | None" = None,
 ) -> str:
-    """Run the Planner agent and return its migration plan as a string."""
+    """Run the Planner agent and return its migration plan as a string.
+
+    Retries up to 3 times with exponential backoff on transient errors.
+    Returns an empty string if all retries are exhausted.
+
+    If a cache is provided, checks for a cached plan before calling the LLM.
+    """
     from rich.console import Console as RichConsole
     from rich.panel import Panel
     con = console or RichConsole()
+
+    logger.info(
+        "Starting Planner (model=%s, url=%s)",
+        settings.planner_model,
+        settings.planner_base_url,
+    )
+
+    # --- Check planner cache ---
+    remaining_issues = [
+        {"line": i.line, "symbol": i.symbol, "reason": i.reason}
+        for i in migration_result.remaining
+    ]
+    if cache is not None:
+        cached_plan = cache.get_planner(original_code, remaining_issues)
+        if cached_plan is not None:
+            logger.info("Using cached planner output (%d chars)", len(cached_plan))
+            if verbose:
+                con.print(Panel(
+                    "[bold cyan]Planner[/bold cyan] — using cached plan",
+                    style="cyan",
+                ))
+                con.print(Panel(cached_plan, title="[bold cyan]Planner Output (cached)[/bold cyan]", style="cyan"))
+            return cached_plan
 
     if verbose:
         con.print(Panel(
@@ -117,22 +156,56 @@ def run_planner(
         {"role": "user", "content": message},
     ]
 
-    response = client.create(
-        messages=messages,
-        model=settings.planner_model,
-        temperature=llm_config.get("temperature", 0.6),
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            logger.debug("Planner attempt %d/%d", attempt + 1, _MAX_RETRIES)
+            response = client.create(
+                messages=messages,
+                model=settings.planner_model,
+                temperature=llm_config.get("temperature", 0.6),
+            )
+
+            texts = client.extract_text_or_completion_object(response)
+            if not texts:
+                plan = ""
+            elif isinstance(texts[0], str):
+                plan = texts[0]
+            else:
+                plan = getattr(texts[0], "content", "") or ""
+
+            logger.info("Planner produced plan (%d chars)", len(plan))
+
+            # Cache the plan for future runs
+            if cache is not None and plan:
+                cache.put_planner(original_code, remaining_issues, plan)
+
+            if verbose and plan:
+                con.print(Panel(plan, title="[bold cyan]Planner Output[/bold cyan]", style="cyan"))
+
+            return plan
+
+        except Exception as exc:
+            last_error = exc
+            backoff = _RETRY_BACKOFF[min(attempt, len(_RETRY_BACKOFF) - 1)]
+            logger.warning(
+                "Planner attempt %d/%d failed: %s. Retrying in %ds...",
+                attempt + 1,
+                _MAX_RETRIES,
+                exc,
+                backoff,
+            )
+            if attempt < _MAX_RETRIES - 1:
+                time.sleep(backoff)
+
+    logger.error(
+        "Planner failed after %d attempts. Last error: %s. "
+        "Proceeding without a plan — the Executor will work from the remaining issues list.",
+        _MAX_RETRIES,
+        last_error,
     )
-
-    texts = client.extract_text_or_completion_object(response)
-    if not texts:
-        plan = ""
-    elif isinstance(texts[0], str):
-        plan = texts[0]
-    else:
-        # ChatCompletionMessage object — extract .content
-        plan = getattr(texts[0], "content", "") or ""
-
-    if verbose and plan:
-        con.print(Panel(plan, title="[bold cyan]Planner Output[/bold cyan]", style="cyan"))
-
-    return plan
+    con.print(
+        f"[yellow]  Planner unavailable ({last_error}). "
+        f"Proceeding without a plan.[/yellow]"
+    )
+    return ""
