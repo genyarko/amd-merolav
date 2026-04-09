@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  # CPU-only mode: rule-based migration + LLM via remote API
+  rocm-migrate:
+    build:
+      context: .
+      target: cpu
+    volumes:
+      - ./input:/input:ro         # Mount your CUDA source files here
+      - ./rocm_output:/output     # Migrated files written here
+      - ./.env:/app/.env:ro       # API keys for LLM backends
+    entrypoint: ["rocm-migrate"]
+    command: ["/input", "--output", "/output"]
+
+  # GPU mode: full validation on AMD GPU (requires ROCm host)
+  rocm-migrate-gpu:
+    build:
+      context: .
+      target: gpu
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    shm_size: "16g"
+    volumes:
+      - ./input:/input:ro
+      - ./rocm_output:/output
+      - ./.env:/app/.env:ro
+    entrypoint: ["rocm-migrate"]
+    command: ["/input", "--output", "/output", "--validate-on-gpu"]
+
+  # vLLM planner server on AMD GPU
+  vllm-planner:
+    image: vllm/vllm-openai-rocm:v0.17.1
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+    shm_size: "16g"
+    ports:
+      - "8001:8000"
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    command: >
+      --model deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
+      --host 0.0.0.0
+      --port 8000

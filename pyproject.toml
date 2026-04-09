@@ -4,10 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rocm-migrate"
-version = "0.1.0"
-description = "CUDA-to-ROCm migration agent using AutoGen multi-agent framework"
+version = "0.2.0"
+description = "Automatically migrate NVIDIA CUDA Python/PyTorch code to AMD ROCm using multi-agent LLM reasoning"
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    {name = "George Nyarko"},
+]
+keywords = [
+    "cuda", "rocm", "hip", "amd", "nvidia", "migration", "pytorch",
+    "gpu", "llm", "autogen", "deep-learning", "code-migration",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
 dependencies = [
     "pyautogen>=0.2.0b2",
     "typer>=0.12",
@@ -19,7 +43,20 @@ dependencies = [
 [project.optional-dependencies]
 claude = ["anthropic>=0.30"]
 watch = ["watchdog>=4.0"]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "hypothesis>=6.0", "pytest-cov>=4.0"]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.0",
+    "pytest-cov>=4.0",
+]
+all = [
+    "rocm-migrate[claude,watch]",
+]
+
+[project.urls]
+Homepage = "https://github.com/genyarko/amd-merolav"
+Repository = "https://github.com/genyarko/amd-merolav"
+Issues = "https://github.com/genyarko/amd-merolav/issues"
 
 [project.scripts]
 rocm-migrate = "cli.main:app"

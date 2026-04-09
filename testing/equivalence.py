@@ -52,8 +52,6 @@ _EQUIV_RUNNER = textwrap.dedent("""\
         print(json.dumps(results))
         sys.exit(0)
 
-    import re as _re
-
     # Helper: capture tensor outputs from exec'd code
     def run_code(path):
         # Seed RNG for deterministic comparison between original and migrated
@@ -79,19 +77,14 @@ _EQUIV_RUNNER = textwrap.dedent("""\
         source = source.replace("'cuda'", "'cpu'")  # last resort
         source = source.replace('"cuda"', '"cpu"')
 
-        # Stub out torch.cuda GPU-only utility calls that fail on CPU
-        source = _re.sub(
-            r"torch\.cuda\.memory_allocated\([^)]*\)", "0", source)
-        source = _re.sub(
-            r"torch\.cuda\.memory_reserved\([^)]*\)", "0", source)
-        source = _re.sub(
-            r"torch\.cuda\.max_memory_allocated\([^)]*\)", "0", source)
-        source = _re.sub(
-            r"torch\.cuda\.reset_peak_memory_stats\([^)]*\)", "None", source)
-        source = _re.sub(
-            r"torch\.cuda\.synchronize\([^)]*\)", "None", source)
-        source = _re.sub(
-            r"torch\.cuda\.empty_cache\([^)]*\)", "None", source)
+        # Monkey-patch torch.cuda GPU-only calls that fail on CPU
+        _noop = lambda *a, **k: 0
+        torch.cuda.memory_allocated = _noop
+        torch.cuda.memory_reserved = _noop
+        torch.cuda.max_memory_allocated = _noop
+        torch.cuda.reset_peak_memory_stats = _noop
+        torch.cuda.synchronize = _noop
+        torch.cuda.empty_cache = _noop
 
         # Suppress stdout from exec'd code so print() calls
         # don't pollute the JSON output on stdout
