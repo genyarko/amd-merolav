@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\agents\orchestrator.py
+# hypothesis_version: 6.151.11
+
+[1200, 4000, '\n... [truncated]', 'ALL_TESTS_PASSED', 'Any | None', 'ChunkExecutor', 'ChunkTester', 'Coder', 'Executor', 'NEVER', 'Reviewer', 'Tester', 'assistant', 'bold green', 'bold magenta', 'bold red', 'bold yellow', 'content', 'green', 'line', 'messages', 'migrated_code', 'name', 'reason', 'red', 'role', 'round_robin', 'symbol', 'white']

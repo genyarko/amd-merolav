@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\migrator.py
+# hypothesis_version: 6.151.11
+
+[0.3, 0.4, 0.5, 0.6, 0.95, 1.0, '  #', '.', '<<<...>>>', 'Import replacement', 'api_call', 'attribute', 'backend', 'env_var', 'import']

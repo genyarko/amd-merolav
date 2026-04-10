@@ -28,13 +28,14 @@ def get_planner_config(settings: Settings) -> dict[str, Any]:
 
 
 def get_executor_config(settings: Settings) -> dict[str, Any]:
-    """Return AutoGen llm_config for the Executor (Mistral Codestral API)."""
+    """Return AutoGen llm_config for the Executor (any OpenAI-compatible endpoint)."""
+    api_key = settings.executor_api_key or settings.mistral_api_key or "EMPTY"
     return {
         "config_list": [
             {
                 "model": settings.executor_model,
                 "base_url": settings.executor_base_url,
-                "api_key": settings.mistral_api_key,
+                "api_key": api_key,
                 "price": [0, 0],  # suppress ag2 cost warning
             }
         ],

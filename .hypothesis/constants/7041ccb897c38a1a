@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\cache.py
+# hypothesis_version: 6.151.11
+
+['*', '*.json', '*.txt', '.rocm_cache', 'applied', 'backend', 'cached_at', 'cached_migrations', 'cached_plans', 'manifest.json', 'migrated_code', 'migrations', 'planner', 'remaining', 'result_hash', 'source_hash', 'timestamp', 'tracked_files', 'utf-8']

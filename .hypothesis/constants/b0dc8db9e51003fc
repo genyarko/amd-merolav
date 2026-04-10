@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\knowledge\torch_cuda_map.py
+# hypothesis_version: 6.151.11
+
+['.cuda()', 'Works on ROCm', 'from apex', 'from hip', 'from migraphx', 'from pycuda', 'from tensorrt', 'import cupy', 'import migraphx', 'import pycuda', 'import tensorrt', 'import triton', 'torch.backends.cudnn', 'torch.cuda.Event', 'torch.cuda.Stream', 'torch.cuda.amp', 'torch.cuda.nccl', 'torch.cuda.nvtx', 'torch.device("cuda")']

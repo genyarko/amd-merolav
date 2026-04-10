@@ -168,6 +168,23 @@ User CLI invocation
 
 The **Planner** always uses the self-hosted vLLM endpoint (`PLANNER_BASE_URL`) — set this to your MI300X or any OpenAI-compatible server running DeepSeek-R1.
 
+### Custom Executor
+
+Use any OpenAI-compatible endpoint as the code executor:
+
+```bash
+# Self-hosted Gemma 4 on port 8002
+rocm-migrate input.py --executor-url http://10.128.0.2:8002/v1 --executor-model google/gemma-4-31B-it
+
+# Ollama local
+rocm-migrate input.py --executor-url http://localhost:11434/v1 --executor-model codellama
+
+# Any OpenAI-compatible API
+rocm-migrate input.py --executor-url https://api.together.xyz/v1 --executor-model meta-llama/Llama-3-70b --executor-key $TOGETHER_KEY
+```
+
+The planner (DeepSeek-R1) runs independently -- only the executor is swapped.
+
 ---
 
 ## Self-Hosting the Planner on AMD MI300X
@@ -227,8 +244,11 @@ Arguments:
   INPUT_PATH          Path to .py file or directory of .py files
 
 Options:
-  --backend TEXT      Model backend: self-hosted | mistral | deepseek | claude [default: mistral]
-  --output TEXT       Output directory for migrated files [default: ./rocm_output/]
+  --backend TEXT       Model backend: self-hosted | mistral | deepseek | claude [default: mistral]
+  --executor-url TEXT  Executor LLM server URL (overrides .env EXECUTOR_BASE_URL)
+  --executor-model TEXT Executor model name (overrides .env EXECUTOR_MODEL)
+  --executor-key TEXT  API key for the executor backend (overrides .env EXECUTOR_API_KEY)
+  --output TEXT        Output directory for migrated files [default: ./rocm_output/]
   --diff-only         Only show diff, don't write files
   --no-agent          Skip LLM agents, only apply rule-based migration
   --force-agents      Always run LLM agents even if rules resolve everything

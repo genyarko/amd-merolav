@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\testing\runner.py
+# hypothesis_version: 6.151.11
+
+['ERROR', 'FAIL', 'PASS', 'Sandbox stderr:\n%s', 'Unknown error', 'WARN', 'migrated_code.py', 'utf-8', 'wrapper.py']

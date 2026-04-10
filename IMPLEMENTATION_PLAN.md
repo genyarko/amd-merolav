@@ -1156,6 +1156,282 @@ The following phases take the project from "impressive hackathon demo" to "produ
 | 16 | Large File Handling | Medium | High | Chunk-based migration for any file size |
 | 17 | Packaging & Distribution | Low | Low | pip install, Docker, CI/CD |
 
-**Recommended implementation order**: 7 → 12 → 9 → 8 → 11 → 15 → 10 → 13 → 14 → 16 → 17
+**Phases 7–17**: Complete. All implemented and tested.
 
-Start with error handling (Phase 7) and tests (Phase 12) because every subsequent phase benefits from logging and regression protection. Then confidence scoring (Phase 9) and multi-file support (Phase 8) deliver the most user-visible value. The rest can be tackled in any order based on user demand.
+---
+
+# Hackathon Multi-Track Expansion
+
+The lablab.ai AMD Hackathon has multiple tracks. Track 1 (CUDA→ROCm migration agent) is submitted. Tracks 2 and 3 extend the project to showcase AMD MI300X capabilities for real ML workloads — fine-tuning and multimodal inference — using existing plant disease detection datasets.
+
+All three tracks share the same AMD infrastructure (MI300X on DigitalOcean Developer Cloud) and demonstrate the ROCm ecosystem end-to-end: from developer tooling (Track 1) to training (Track 2) to serving (Track 3).
+
+---
+
+## Track 2: Fine-Tuning on AMD GPUs
+
+### Phase 18: Dataset Preparation & Merging
+
+**Goal**: Combine multiple Kaggle plant disease datasets into a single unified HuggingFace-format dataset on the MI300X.
+
+**Steps**:
+
+1. **Download datasets from Kaggle to MI300X**
+   - Install Kaggle CLI on the droplet
+   - Download: `merolavtechnology/dataset-for-crop-pest-and-disease-detection` (Mendeley crop pest, augmented)
+   - Download: `ohagwucollinspatrick/amini-cocoa-contamination-dataset` (cocoa contamination)
+   - Download: `plantvillage-dataset` (PlantVillage, optional secondary source)
+
+2. **Merge and standardize datasets**
+   - Normalize class labels across all datasets (lowercase, underscore-separated)
+   - Deduplicate images across sources
+   - Add cocoa contamination classes to the existing 22-class crop pest taxonomy
+   - Validate all images (remove corrupt files)
+   - Target: 30+ classes covering cashew, cassava, maize, tomato, cocoa
+
+3. **Convert to HuggingFace ImageFolder format**
+   - Structure: `data/{train,val,test}/{class_name}/*.jpg`
+   - Stratified split: 80/10/10 (same strategy as Kaggle notebooks)
+   - Generate `dataset_info.json` with class metadata
+   - Push to HuggingFace Hub (optional, for reproducibility)
+
+4. **Create dataset statistics report**
+   - Per-class image counts, class imbalance analysis
+   - Compute class weights for balanced training
+   - Sample visualizations per class
+
+**Files to create**: `vision/data/prepare_dataset.py`, `vision/data/merge_datasets.py`
+**Infrastructure**: MI300X droplet, Kaggle API
+
+---
+
+### Phase 19: PyTorch Training Pipeline on ROCm
+
+**Goal**: Fine-tune a large vision model on MI300X using PyTorch + ROCm, surpassing the Kaggle EfficientNet baseline.
+
+**Steps**:
+
+1. **Set up PyTorch training environment on MI300X**
+   - Use ROCm PyTorch Docker image
+   - Install: `timm`, `transformers`, `accelerate`, `wandb` (logging)
+   - Verify GPU detection: `torch.cuda.is_available()` on ROCm
+
+2. **Port training pipeline from TF/Keras to PyTorch**
+   - Replace `ImageDataGenerator` → `torchvision.transforms` + `DataLoader`
+   - Replace EfficientNet → larger models enabled by MI300X VRAM:
+     - **ViT-Large/16** (304M params) — needs ~20GB, easily fits MI300X
+     - **DINOv2-Large** (300M params) — strong zero-shot, excellent for fine-tuning
+     - **EVA-02-Large** (300M params) — state-of-art on image classification
+   - Implement 2-phase training: frozen backbone → fine-tune top layers
+   - Implement Mixup augmentation in PyTorch
+   - Add mixed-precision training (`torch.amp`) — leverages MI300X BF16 support
+
+3. **Train and benchmark**
+   - Train ViT-Large or DINOv2-Large on the merged dataset
+   - Compare against Kaggle EfficientNetB0/B3 baseline:
+     - Accuracy improvement (expect 5-15% gain from larger model + more VRAM)
+     - Training speed (MI300X vs Kaggle T4/P100)
+     - Batch size advantage (MI300X can do 256+ batch vs Kaggle's 32)
+   - Log metrics with Weights & Biases
+   - Generate classification report, confusion matrix, per-class F1
+
+4. **Export and serve**
+   - Save best model checkpoint
+   - Export to ONNX for portable inference
+   - Serve via vLLM or TorchServe on MI300X
+   - Benchmark inference throughput (images/sec)
+
+5. **ROCm-specific optimizations**
+   - Profile with `rocprof` to identify bottlenecks
+   - Test `torch.compile()` with ROCm backend
+   - Tune `PYTORCH_HIP_ALLOC_CONF` for memory allocator
+   - Document MI300X-specific findings (BF16 performance, memory bandwidth utilization)
+
+**Key deliverable**: A plant disease classifier that demonstrably outperforms the Kaggle baseline, trained entirely on AMD MI300X with ROCm, with benchmark comparisons.
+
+**Files to create**: `vision/train.py`, `vision/model.py`, `vision/evaluate.py`, `vision/config.py`
+**Infrastructure**: MI300X droplet, ROCm PyTorch Docker
+
+---
+
+### Phase 20: Training Results & Track 2 Submission
+
+**Goal**: Package training results into a polished Track 2 submission.
+
+**Steps**:
+
+1. **Generate benchmark report**
+   - MI300X vs Kaggle GPU comparison table (speed, accuracy, batch size, VRAM)
+   - Training curves (loss, accuracy) for all model variants
+   - Per-class precision/recall/F1 on the merged dataset
+   - ROCm-specific insights and optimizations applied
+
+2. **Write submission materials**
+   - Technical writeup: architecture, training strategy, results
+   - Highlight AMD-specific advantages (192GB VRAM, BF16, large batch sizes)
+   - Include code walkthrough and reproducibility instructions
+
+3. **Publish artifacts**
+   - Model weights on HuggingFace Hub
+   - Dataset on HuggingFace Hub
+   - Training scripts in the repo
+
+**Files to create**: `vision/README.md`, `submission/track2_submission.md`
+
+---
+
+## Track 3: Vision & Multimodal AI
+
+### Phase 21: Multimodal Model Selection & Data Preparation
+
+**Goal**: Prepare a vision-language dataset for fine-tuning a multimodal model that can diagnose plant diseases from photos and provide treatment advice.
+
+**Steps**:
+
+1. **Select multimodal model**
+   - Primary: **Llama 3.2 Vision (11B)** — fits MI300X with room for training
+   - Alternative: **Qwen-VL (7B)** — smaller, faster to fine-tune
+   - Both support image + text input/output
+
+2. **Create vision-language QA dataset**
+   - For each disease class, generate QA pairs:
+     - Q: "What disease does this plant have?" → A: diagnosis + confidence
+     - Q: "How should I treat this?" → A: treatment recommendations
+     - Q: "Is this plant healthy?" → A: yes/no + explanation
+     - Q: "What crop is this?" → A: crop identification
+   - Sources for treatment text:
+     - Agricultural extension databases
+     - Existing disease descriptions from dataset metadata
+     - LLM-generated treatment advice (reviewed for accuracy)
+   - Format as conversation turns with image references
+   - Target: 5-10 QA pairs per class × 30+ classes = 150-300+ training examples
+
+3. **Format for fine-tuning**
+   - Convert to the model's expected chat format (Llama or Qwen)
+   - Structure: `[{"role": "user", "content": [image, question]}, {"role": "assistant", "content": answer}]`
+   - Split into train/val sets
+
+**Files to create**: `vision/data/create_qa_dataset.py`, `vision/data/treatment_knowledge.json`
+
+---
+
+### Phase 22: Multimodal Fine-Tuning & App
+
+**Goal**: Fine-tune the vision-language model on MI300X and build a demo application.
+
+**Steps**:
+
+1. **Fine-tune multimodal model on MI300X**
+   - Use HuggingFace `transformers` + `peft` (LoRA) for efficient fine-tuning
+   - LoRA reduces VRAM needs: fine-tune Llama 3.2 Vision 11B with <40GB
+   - Training config: LoRA rank 16-32, learning rate 2e-5, 3-5 epochs
+   - Mixed precision (BF16) on MI300X
+
+2. **Serve fine-tuned model via vLLM**
+   - Load fine-tuned adapter on top of base model
+   - Serve with vLLM on MI300X (already have the Docker setup)
+   - Expose as OpenAI-compatible API: `/v1/chat/completions` with image support
+
+3. **Build demo application**
+   - Gradio or Streamlit web app
+   - User uploads a photo of a plant leaf
+   - App sends image to the vLLM-served model
+   - Returns: disease diagnosis, severity estimate, treatment recommendations
+   - Include confidence score and alternative diagnoses
+   - Add example gallery with pre-loaded images
+
+4. **Evaluate multimodal performance**
+   - Test on held-out disease images
+   - Compare classification accuracy vs the Track 2 pure vision model
+   - Evaluate quality of generated treatment advice
+   - Measure inference latency (time to diagnosis)
+
+**Files to create**: `vision/finetune_multimodal.py`, `vision/app.py`, `vision/serve.py`
+**Infrastructure**: MI300X droplet, vLLM with vision model support
+
+---
+
+### Phase 23: Track 3 Submission
+
+**Goal**: Package the multimodal plant disease assistant into a polished Track 3 submission.
+
+**Steps**:
+
+1. **Record demo video**
+   - Show: upload photo → disease diagnosis → treatment advice
+   - Highlight: running on MI300X, real-time inference, multimodal understanding
+
+2. **Write submission materials**
+   - Technical writeup: model architecture, fine-tuning approach, evaluation
+   - Highlight: "high-throughput agricultural inspection" use case
+   - AMD-specific: MI300X memory bandwidth for vision-language inference
+
+3. **Deploy for judges**
+   - Public Gradio demo (hosted on MI300X or HuggingFace Spaces)
+   - API endpoint for programmatic access
+
+**Files to create**: `submission/track3_submission.md`
+
+---
+
+## Build in Public (Extra Challenge)
+
+### Phase 24: Social Media & Documentation
+
+**Goal**: Publish technical updates and AMD developer feedback to qualify for the Build in Public prize.
+
+**Requirements** (from hackathon rules):
+1. Share at least 2 technical updates on social media (tag @lablab on X / lablab.ai on LinkedIn, and @AIatAMD on X / AMD Developer on LinkedIn)
+2. Provide meaningful feedback about building with ROCm, AMD Developer Cloud, or APIs
+3. Open-source the project or publish a technical walkthrough
+
+**Steps**:
+
+1. **Publish social posts** (drafts already written in `social/`)
+   - Post 1: Building the CUDA→ROCm migration agent (Track 1) — `post1_building_agent.md`
+   - Post 2: AMD Developer Cloud feedback — `post2_amd_cloud_feedback.md`
+   - Post 3: Benchmark results — `post3_benchmark_results.md`
+   - Post 4: v0.2.0 update announcement — `post4_v020_update.md`
+   - Post 5: (new) Training vision models on MI300X — Track 2 results
+   - Post 6: (new) Multimodal plant disease assistant demo — Track 3 showcase
+
+2. **Write technical walkthrough**
+   - Blog post or GitHub wiki covering the full journey:
+     - Setting up vLLM on MI300X with ROCm
+     - Fine-tuning vision models with PyTorch on ROCm
+     - Building a multimodal AI app on AMD hardware
+     - ROCm developer experience: what worked, what was painful, what's missing
+
+3. **Provide AMD developer feedback**
+   - Document ROCm friction points (vLLM pip vs Docker, Triton issues, etc.)
+   - Suggest improvements to AMD Developer Cloud onboarding
+   - Share performance comparisons (MI300X vs NVIDIA equivalents)
+
+**Files to create**: `social/post5_training_on_mi300x.md`, `social/post6_multimodal_demo.md`, `social/technical_walkthrough.md`
+
+---
+
+## Multi-Track Timeline
+
+| Week | Track 2 (Fine-Tuning) | Track 3 (Multimodal) | Build in Public |
+|------|----------------------|---------------------|----------------|
+| **1** | Phase 18: Download datasets, merge, convert to HuggingFace format | Phase 21: Select model, create QA dataset | Post existing drafts (posts 1-4) |
+| **2** | Phase 19: Train ViT-Large/DINOv2 on MI300X, benchmark vs Kaggle | Phase 22: Fine-tune Llama 3.2 Vision with LoRA | Post 5: Training benchmarks |
+| **3** | Phase 20: Results, optimize, export | Phase 22 (cont): Build Gradio demo app | Post 6: Demo video |
+| **4** | Submit Track 2 | Phase 23: Submit Track 3 | Technical walkthrough + feedback |
+
+## Multi-Track Roadmap Summary
+
+| Phase | Track | Focus Area | Priority | Complexity | Key Deliverable |
+|-------|-------|-----------|----------|------------|-----------------|
+| 18 | Track 2 | Dataset Preparation | **Critical** | Medium | Merged multi-crop disease dataset on MI300X |
+| 19 | Track 2 | PyTorch Training on ROCm | **Critical** | High | ViT-Large fine-tuned on MI300X, beating Kaggle baseline |
+| 20 | Track 2 | Results & Submission | **Critical** | Low | Track 2 submission with benchmarks |
+| 21 | Track 3 | Multimodal Data Prep | **Critical** | Medium | Vision-language QA dataset for plant diseases |
+| 22 | Track 3 | Multimodal Fine-Tuning & App | **Critical** | High | Fine-tuned Llama 3.2 Vision + Gradio demo |
+| 23 | Track 3 | Submission | **Critical** | Low | Track 3 submission with demo |
+| 24 | Public | Social Media & Docs | High | Low | 6+ posts, technical walkthrough, AMD feedback |
+
+**Implementation order**: 18 → 19 + 21 (parallel) → 20 + 22 (parallel) → 23 → 24
+
+Phases 18 and 21 share dataset work. Phases 19 and 22 can run in parallel since they use different models. Phase 24 runs continuously throughout.

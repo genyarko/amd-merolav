@@ -17,12 +17,14 @@ class Settings(BaseSettings):
     planner_base_url: str = "http://localhost:8000/v1"
     planner_model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
 
-    # Executor — Mistral API (Codestral)
+    # Executor — configurable (defaults to Codestral)
     executor_base_url: str = "https://api.mistral.ai/v1"
     executor_model: str = "codestral-latest"
+    executor_api_key: str = ""          # generic key for any executor; falls back to mistral_api_key
+    executor_context_limit: int = 0     # 0 = auto-detect from backend
 
     # Agent settings
-    max_rounds: int = 6
+    max_rounds: int = 8
     default_backend: str = "mistral"
 
     # Timeouts (seconds)

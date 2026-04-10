@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\agents\tester.py
+# hypothesis_version: 6.151.11
+
+['ALL_TESTS_PASSED', 'FAIL', 'PASS', 'VALIDATION FAILED', 'Validation Summary:', 'Validator Summary:']

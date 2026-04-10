@@ -34,7 +34,9 @@ migrated Python code and complete the migration so it runs on AMD GPUs with ROCm
 
 ## Rules
 
-- Return ONLY the complete migrated Python code inside a single ```python code block.
+- You MUST return the complete migrated Python code inside a single ```python code block.
+- This is your ONLY job. Do NOT explain, analyze, or review. Just output the code.
+- If you do not output a ```python block, your response is considered a failure.
 - Preserve the original code's semantics exactly — do not add features or refactor.
 - Add a brief `# ROCm:` comment on any line where behavior may differ on AMD GPUs.
 - If a CUDA feature has no ROCm equivalent, add a `# WARNING: no ROCm equivalent` \

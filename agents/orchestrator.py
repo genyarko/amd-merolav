@@ -15,7 +15,11 @@ logger = get_logger(__name__)
 
 # Mistral and vLLM reject the 'name' field on messages that ag2 adds for
 # multi-agent tracking. Strip it globally before every API call.
+# Also retries on 429 (rate limit) errors with exponential backoff.
 _orig_create = _OAIWrapper.create
+
+_RATE_LIMIT_MAX_RETRIES = 3
+_RATE_LIMIT_BASE_DELAY = 15  # seconds
 
 def _create_strip_names(self, **config):
     if "messages" in config:
@@ -23,7 +27,27 @@ def _create_strip_names(self, **config):
             {k: v for k, v in m.items() if k != "name"}
             for m in config["messages"]
         ]
-    return _orig_create(self, **config)
+
+    for attempt in range(_RATE_LIMIT_MAX_RETRIES + 1):
+        try:
+            return _orig_create(self, **config)
+        except Exception as exc:
+            exc_str = str(exc)
+            is_rate_limit = "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str
+            if is_rate_limit and attempt < _RATE_LIMIT_MAX_RETRIES:
+                # Parse retry delay from error if available
+                delay = _RATE_LIMIT_BASE_DELAY * (2 ** attempt)
+                import re as _re
+                match = _re.search(r"retry in (\d+(?:\.\d+)?)s", exc_str, _re.IGNORECASE)
+                if match:
+                    delay = max(float(match.group(1)) + 1, delay)
+                logger.warning(
+                    "Rate limited (attempt %d/%d) — waiting %.0fs before retry",
+                    attempt + 1, _RATE_LIMIT_MAX_RETRIES, delay,
+                )
+                time.sleep(delay)
+            else:
+                raise
 
 _OAIWrapper.create = _create_strip_names
 
@@ -31,7 +55,7 @@ from agents.coder import CODER_SYSTEM_PROMPT, format_coder_message
 from agents.planner import run_planner
 from agents.reviewer import REVIEWER_SYSTEM_PROMPT
 from agents.tester import run_validation
-from config.model_profiles import get_config_list, get_executor_config
+from config.model_profiles import get_executor_config
 from config.settings import Settings
 from core.analyzer import AnalysisReport
 from core.chunker import chunk_source, reassemble_chunks, CodeChunk
@@ -85,7 +109,7 @@ def run_migration_agents(
 
     # --- Check if chunking is needed ---
     effective_chunk_size = chunk_size or 4000
-    if needs_chunking(original_code, settings.default_backend, chunk_size):
+    if needs_chunking(original_code, settings.default_backend, chunk_size, settings=settings):
         return _run_chunked_migration(
             original_code=original_code,
             migration_result=migration_result,
@@ -105,22 +129,20 @@ def run_migration_agents(
 
     # --- Phase 2: Execution GroupChat ---
 
-    # Use executor config (Qwen2.5-Coder) for both Executor and Reviewer
+    # Use executor config for both Executor and Reviewer
     try:
-        if settings.default_backend == "self-hosted":
-            llm_config = get_executor_config(settings)
-        else:
-            config_list = get_config_list(settings.default_backend, settings)
-            llm_config: dict[str, Any] = {"config_list": config_list, "temperature": 0.1}
-        logger.debug("Executor LLM config loaded for backend=%s", settings.default_backend)
+        llm_config = get_executor_config(settings)
+        logger.debug("Executor LLM config loaded (model=%s, url=%s)",
+                     settings.executor_model, settings.executor_base_url)
     except Exception as exc:
-        logger.error("Failed to load LLM config for backend=%s: %s", settings.default_backend, exc)
+        logger.error("Failed to load executor config: %s", exc)
         raise
 
     # --- Verbose observer hook ---
 
+    executor_label = f"Executor ({settings.executor_model})"
     AGENT_STYLES = {
-        "Executor": ("bold green", "Executor (Qwen2.5-Coder)"),
+        "Executor": ("bold green", executor_label),
         "Reviewer": ("bold yellow", "Reviewer"),
         "Tester":   ("bold magenta", "Tester"),
     }
@@ -179,8 +201,10 @@ def run_migration_agents(
     ) -> tuple[bool, str]:
         """Extract code from the most recent code block in conversation history."""
         # Search backward — Reviewer may say "APPROVED" without repeating code
+        # Skip the first message (seed/dispatch) which contains INPUT code blocks
+        search_msgs = (messages or [])[1:]
         code = None
-        for msg in reversed(messages or []):
+        for msg in reversed(search_msgs):
             code = _extract_code_block(msg.get("content", ""))
             if code:
                 break
@@ -200,11 +224,21 @@ def run_migration_agents(
 
     # --- Build the group chat ---
 
+    # A proxy agent sends the seed message so the Executor's first turn is an
+    # actual LLM call (not the seed message itself).  Round-robin then goes:
+    # Executor → Reviewer → Tester → Executor → ...
+    proxy = ConversableAgent(
+        name="TaskDispatcher",
+        system_message="You dispatch migration tasks.",
+        llm_config=False,
+        human_input_mode="NEVER",
+    )
+
     groupchat = GroupChat(
-        agents=[coder, reviewer, tester],
+        agents=[proxy, coder, reviewer, tester],
         messages=[],
         max_round=settings.max_rounds,
-        speaker_selection_method="round_robin",  # Coder→Reviewer→Tester, no LLM needed
+        speaker_selection_method="round_robin",  # Proxy→Executor→Reviewer→Tester
     )
 
     manager = GroupChatManager(
@@ -237,7 +271,8 @@ def run_migration_agents(
     start_time = time.monotonic()
 
     try:
-        coder.initiate_chat(manager, message=seed_message)
+        # Proxy sends the seed message; Executor responds first with LLM output
+        proxy.initiate_chat(manager, message=seed_message)
     except Exception as exc:
         elapsed = time.monotonic() - start_time
         logger.error(
@@ -262,8 +297,52 @@ def run_migration_agents(
     # --- Extract final code from conversation ---
 
     final_code = _extract_final_code(groupchat.messages)
+
+    # --- Retry if executor failed to produce a code block ---
     if not final_code:
-        logger.warning("No code block found in agent conversation — returning empty result")
+        logger.warning("No code block found in agent conversation — retrying executor directly")
+        if verbose:
+            con.print("[yellow]  Executor did not produce code. Retrying...[/yellow]")
+        try:
+            retry_msg = (
+                "You did not output a ```python code block in your previous response. "
+                "You MUST output the complete migrated Python code in a single ```python block. "
+                "Do not explain or review — just output the code.\n\n"
+                + seed_message
+            )
+            retry_coder = ConversableAgent(
+                name="RetryExecutor",
+                system_message=CODER_SYSTEM_PROMPT,
+                llm_config=llm_config,
+                human_input_mode="NEVER",
+                max_consecutive_auto_reply=1,
+            )
+            retry_receiver = ConversableAgent(
+                name="RetryReceiver",
+                system_message="Accept the code.",
+                llm_config=False,
+                human_input_mode="NEVER",
+                is_termination_msg=lambda msg: True,
+            )
+            retry_coder.initiate_chat(retry_receiver, message=retry_msg)
+
+            for msg in reversed(retry_coder.chat_messages.get(retry_receiver, [])):
+                code = _extract_code_block(msg.get("content", ""))
+                if code:
+                    final_code = code
+                    logger.info("Retry succeeded — extracted code (%d chars)", len(final_code))
+                    if verbose:
+                        con.print("[green]  Retry succeeded.[/green]")
+                    break
+
+            if not final_code:
+                logger.warning("Retry also failed — falling back to rule-based result")
+                if verbose:
+                    con.print("[red]  Retry failed. Using rule-based result.[/red]")
+                return migration_result.code
+        except Exception as exc:
+            logger.error("Retry failed with error: %s", exc)
+            return migration_result.code
     else:
         logger.debug("Extracted final code (%d chars)", len(final_code))
 
@@ -305,7 +384,7 @@ def _run_chunked_migration(
         return code_to_chunk
 
     # Budget allocation
-    budget = ContextBudget.for_backend(settings.default_backend)
+    budget = ContextBudget.for_backend(settings.default_backend, settings=settings)
     analysis_text = "\n".join(
         f"  L{u.line} [{u.category}] {u.symbol}" for u in report.usages
     )
@@ -415,11 +494,7 @@ def _migrate_single_chunk(
     GroupChat overhead, since each chunk is small.
     """
     try:
-        if settings.default_backend == "self-hosted":
-            llm_config = get_executor_config(settings)
-        else:
-            config_list = get_config_list(settings.default_backend, settings)
-            llm_config: dict[str, Any] = {"config_list": config_list, "temperature": 0.1}
+        llm_config = get_executor_config(settings)
     except Exception:
         raise
 
@@ -477,16 +552,26 @@ def _extract_code_block(text: str) -> str | None:
 
 
 def _extract_final_code(messages: list[dict]) -> str:
-    """Walk messages in reverse to find the last code block from the Coder."""
-    # First, try to find the last code block from the Coder
-    for msg in reversed(messages):
+    """Walk messages in reverse to find the last code block from the Coder.
+
+    Skips the first message (seed message) because it contains embedded
+    ```python blocks of the INPUT code — not executor-generated output.
+    """
+    if len(messages) <= 1:
+        return ""
+
+    # Only look at messages AFTER the seed message (index 0)
+    agent_messages = messages[1:]
+
+    # First, try to find the last code block from the Executor
+    for msg in reversed(agent_messages):
         if msg.get("name") in ("Executor", "Coder") or msg.get("role") == "assistant":
             code = _extract_code_block(msg.get("content", ""))
             if code:
                 return code
 
-    # Fallback: find any code block in any message
-    for msg in reversed(messages):
+    # Fallback: find any code block in any non-seed message
+    for msg in reversed(agent_messages):
         code = _extract_code_block(msg.get("content", ""))
         if code:
             return code

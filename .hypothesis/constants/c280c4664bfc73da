@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\knowledge\optimizations.py
+# hypothesis_version: 6.151.11
+
+['Architecture', 'Attention', 'CUDA_VISIBLE_DEVICES', 'Compilation', 'DataParallel', 'Environment', 'Framework', 'Graphs', 'Inference', 'Library', 'Memory', 'Mixed Precision', 'Multi-GPU', 'Performance', 'Profiling', 'Quantization', 'bitsandbytes', 'cub::', 'cudaGraph', 'deepspeed', 'flash_attn', 'torch.compile', 'torch.cuda.amp', 'torch.cuda.memory', 'torch.nn.Conv', 'torch.profiler', 'transformers', 'vllm', 'warpSize']

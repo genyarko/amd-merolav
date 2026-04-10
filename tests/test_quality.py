@@ -177,6 +177,46 @@ class TestBuildQualityReport:
         assert report.overall_score == 1.0
         assert report.summary["total"] == 0
 
+    def test_resolved_symbol_gets_full_confidence(self):
+        """When agent removes the CUDA symbol from output, confidence should be 1.0."""
+        remaining = [
+            RemainingIssue(24, "torch.cuda.nvtx", "Import may need manual migration", 0.5),
+        ]
+        migrated = "import hip.nvtx as nvtx\nx = 1\n"
+        report = build_quality_report(
+            "test.py", [], remaining,
+            agent_used=True, validation_passed=True, migrated_code=migrated,
+        )
+        assert report.changes[0].confidence == 1.0
+        assert report.changes[0].replacement == "(resolved by LLM agent)"
+        assert report.overall_score == 1.0
+
+    def test_unresolved_symbol_stays_low(self):
+        """When the CUDA symbol is still in the output, no resolution boost."""
+        remaining = [
+            RemainingIssue(24, "torch.cuda.nvtx", "Import may need manual migration", 0.5),
+        ]
+        migrated = "import torch.cuda.nvtx as nvtx\nx = 1\n"
+        report = build_quality_report(
+            "test.py", [], remaining,
+            agent_used=True, validation_passed=True, migrated_code=migrated,
+        )
+        assert report.changes[0].confidence < 1.0
+        assert report.changes[0].replacement == "(handled by LLM agent)"
+
+    def test_resolution_requires_agent_and_validation(self):
+        """Resolution boost only applies when both agent was used and validation passed."""
+        remaining = [
+            RemainingIssue(24, "torch.cuda.nvtx", "Import may need manual migration", 0.5),
+        ]
+        migrated = "import hip.nvtx as nvtx\n"
+        # Agent used but validation failed — no resolution boost
+        report = build_quality_report(
+            "test.py", [], remaining,
+            agent_used=True, validation_passed=False, migrated_code=migrated,
+        )
+        assert report.changes[0].confidence < 1.0
+
 
 # --- generate_review_checklist ---
 

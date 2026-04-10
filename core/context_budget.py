@@ -52,8 +52,14 @@ class ContextBudget:
         return self.max_tokens - self.reserved_output - _SYSTEM_OVERHEAD_TOKENS
 
     @classmethod
-    def for_backend(cls, backend: str, override: int | None = None) -> ContextBudget:
-        limit = override or _DEFAULT_CONTEXT_LIMITS.get(backend, 12000)
+    def for_backend(cls, backend: str, override: int | None = None,
+                    settings: "Any | None" = None) -> ContextBudget:
+        if override:
+            limit = override
+        elif settings and getattr(settings, "executor_context_limit", 0) > 0:
+            limit = settings.executor_context_limit
+        else:
+            limit = _DEFAULT_CONTEXT_LIMITS.get(backend, 12000)
         return cls(max_tokens=limit)
 
 
@@ -167,9 +173,10 @@ def allocate_budget(
     )
 
 
-def needs_chunking(source: str, backend: str, chunk_size: int | None = None) -> bool:
+def needs_chunking(source: str, backend: str, chunk_size: int | None = None,
+                   settings: "Any | None" = None) -> bool:
     """Check whether a source file needs chunking for the given backend."""
-    budget = ContextBudget.for_backend(backend, override=chunk_size)
+    budget = ContextBudget.for_backend(backend, override=chunk_size, settings=settings)
     source_tokens = estimate_tokens(source)
     # If the source + overhead fits in context, no need to chunk
     return source_tokens > (budget.available - _SYSTEM_OVERHEAD_TOKENS)

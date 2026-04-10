@@ -109,12 +109,21 @@ def confidence_for_remaining(reason: str) -> float:
 
 # --- Quality report builders ---
 
+def _symbol_resolved_in_code(symbol: str, migrated_code: str) -> bool:
+    """Check whether a CUDA symbol has been removed/replaced in the migrated code."""
+    if not migrated_code or not symbol:
+        return False
+    # The symbol should no longer appear in the migrated code
+    return symbol not in migrated_code
+
+
 def build_quality_report(
     file_path: str,
     applied: list,  # list[AppliedChange]
     remaining: list,  # list[RemainingIssue]
     agent_used: bool = False,
     validation_passed: bool = False,
+    migrated_code: str = "",
 ) -> MigrationQualityReport:
     """Build a MigrationQualityReport from migration results.
 
@@ -124,6 +133,8 @@ def build_quality_report(
         remaining: Issues that were not auto-fixed.
         agent_used: Whether the LLM agent pipeline was used.
         validation_passed: Whether all validation checks passed.
+        migrated_code: The final migrated source code, used to verify
+            whether remaining issues were actually resolved by the agent.
     """
     report = MigrationQualityReport(file_path=file_path)
 
@@ -141,7 +152,7 @@ def build_quality_report(
             source="rule",
         ))
 
-    # Score remaining issues — these weren't auto-fixed
+    # Score remaining issues — these weren't auto-fixed by rules
     for issue in remaining:
         base_conf = confidence_for_remaining(issue.reason)
 
@@ -153,10 +164,21 @@ def build_quality_report(
         if validation_passed:
             base_conf = min(base_conf + 0.1, 0.95)
 
+        # Verify: if the symbol is gone from the final code, the agent resolved it
+        resolved = (
+            agent_used
+            and validation_passed
+            and _symbol_resolved_in_code(issue.symbol, migrated_code)
+        )
+        if resolved:
+            base_conf = 1.0
+
         report.changes.append(ScoredChange(
             line=issue.line,
             original=issue.symbol,
-            replacement="(handled by LLM agent)" if agent_used else "(needs manual review)",
+            replacement="(resolved by LLM agent)" if resolved
+                else "(handled by LLM agent)" if agent_used
+                else "(needs manual review)",
             rule=issue.reason,
             confidence=base_conf,
             source="agent" if agent_used else "unfixed",

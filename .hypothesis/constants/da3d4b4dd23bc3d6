@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\knowledge\library_map.py
+# hypothesis_version: 6.151.11
+
+[0.0, 0.7, 0.8, 1.0, 'CUB', 'CUTLASS', 'MIGraphX', 'MIOpen', 'NCCL', 'NVRTC', 'RCCL', 'TensorRT', 'Thrust', 'composable_kernel', 'cuBLAS', 'cuDLA', 'cuDNN', 'cuFFT', 'cuRAND', 'cuSOLVER', 'cuSPARSE', 'hipCUB', 'hipRTC', 'nvJPEG', 'rocBLAS', 'rocFFT', 'rocJPEG', 'rocRAND', 'rocSOLVER', 'rocSPARSE', 'rocThrust']

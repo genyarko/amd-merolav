@@ -1,0 +1,20 @@
+{
+  "tests\\fixtures\\sample_cuda_simple.py": {
+    "source_hash": "feeafcd46223bcfe554d3320bac3e5478e8b55d52f790fa6c0debe52c400b109",
+    "result_hash": "bafc0ec461406b9c",
+    "timestamp": 1775811747.3546884,
+    "backend": "self-hosted"
+  },
+  "tests\\fixtures\\sample_cuda_multi_gpu.py": {
+    "source_hash": "c900c4e57aa4b9f03e6b770667f8c9ccd0679ce03eb1b0348b4e0606da88767c",
+    "result_hash": "9c3d36be70580f85",
+    "timestamp": 1775731622.5219817,
+    "backend": "mistral"
+  },
+  "tests\\fixtures\\sample_cuda_pycuda.py": {
+    "source_hash": "3855cfd809b6dba00e8a533092651a50ed0c8c2e0cbdda1881fd5ac627f87b49",
+    "result_hash": "9185bda1c50eebf6",
+    "timestamp": 1775731732.2748384,
+    "backend": "mistral"
+  }
+}

@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\cuda_c_migrator.py
+# hypothesis_version: 6.151.11
+
+[0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, '#include', '(""")(.*?)(""")', "(''')(.*?)(''')", ')', '.cuh', '.hpp', '<<<', '<<<...>>>', '<>', '\\b(cuda[A-Z]\\w+)\\b', '\\bcub::', '\\s*\\(([^)]*)\\)', '__device__', '__global__', '__shared__', 'blockDim', 'blockIdx', 'cub/', 'cub::', 'cudaFree', 'cudaMalloc', 'cudaMemcpy', 'hipcub/', 'hipcub::', 'hipify-perl', 'threadIdx']

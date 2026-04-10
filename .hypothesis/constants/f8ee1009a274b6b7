@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\testing\runner.py
+# hypothesis_version: 6.151.11
+
+['-c', 'ERROR', 'FAIL', 'PASS', 'Sandbox stderr:\n%s', 'True', 'Unknown GPU error', 'Unknown error', 'WARN', 'gpu_wrapper.py', 'migrated_code.py', 'none', 'utf-8', 'wrapper.py']

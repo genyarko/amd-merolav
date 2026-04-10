@@ -49,6 +49,18 @@ def main(
         None,
         help="Planner vLLM server URL (overrides .env PLANNER_BASE_URL)",
     ),
+    executor_url: Optional[str] = typer.Option(
+        None, "--executor-url",
+        help="Executor LLM server URL (overrides .env EXECUTOR_BASE_URL)",
+    ),
+    executor_model_name: Optional[str] = typer.Option(
+        None, "--executor-model",
+        help="Executor model name (overrides .env EXECUTOR_MODEL)",
+    ),
+    executor_key: Optional[str] = typer.Option(
+        None, "--executor-key",
+        help="API key for the executor backend (overrides .env EXECUTOR_API_KEY)",
+    ),
     max_rounds: int = typer.Option(
         6, help="Max agent refinement rounds"
     ),
@@ -131,6 +143,12 @@ def main(
     settings.default_backend = backend
     if planner_url is not None:
         settings.planner_base_url = planner_url
+    if executor_url is not None:
+        settings.executor_base_url = executor_url
+    if executor_model_name is not None:
+        settings.executor_model = executor_model_name
+    if executor_key is not None:
+        settings.executor_api_key = executor_key
     settings.max_rounds = max_rounds
     if planner_timeout is not None:
         settings.planner_timeout = planner_timeout
@@ -221,6 +239,37 @@ def main(
         except OSError as exc:
             console.print(f"[red]Error:[/red] Cannot create output directory {output}: {exc}")
             raise typer.Exit(1)
+
+    # --- Resolve --backend into executor settings (if not explicitly overridden) ---
+    _BACKEND_DEFAULTS = {
+        "mistral": {
+            "base_url": "https://api.mistral.ai/v1",
+            "model": "codestral-latest",
+            "key_attr": "mistral_api_key",
+        },
+        "deepseek": {
+            "base_url": "https://api.deepseek.com/v1",
+            "model": "deepseek-coder",
+            "key_attr": "deepseek_api_key",
+        },
+        "claude": {
+            "base_url": "https://api.anthropic.com/v1",
+            "model": "claude-sonnet-4-20250514",
+            "key_attr": "anthropic_api_key",
+        },
+        "self-hosted": {
+            "base_url": settings.executor_base_url,
+            "model": settings.executor_model,
+            "key_attr": None,
+        },
+    }
+
+    if executor_url is None and backend in _BACKEND_DEFAULTS:
+        defaults = _BACKEND_DEFAULTS[backend]
+        settings.executor_base_url = defaults["base_url"]
+        settings.executor_model = defaults["model"]
+        if defaults["key_attr"] and not settings.executor_api_key:
+            settings.executor_api_key = getattr(settings, defaults["key_attr"], "")
 
     # --- Validate API key is set for selected backend ---
     if not no_agent:
@@ -592,6 +641,7 @@ def _process_file(
         remaining=result.remaining,
         agent_used=agent_used and final_code != result.code,
         validation_passed=validation_passed,
+        migrated_code=final_code,
     )
     _print_quality_report(quality_report)
 
@@ -1028,6 +1078,9 @@ _BACKEND_KEY_MAP = {
 
 def _check_backend_key(settings: Settings, backend: str) -> None:
     """Warn if the API key for the selected backend is not set."""
+    # If executor_api_key is explicitly set, it takes precedence — no warning needed
+    if settings.executor_api_key:
+        return
     key_attr = _BACKEND_KEY_MAP.get(backend)
     if key_attr and not getattr(settings, key_attr, ""):
         console.print(
@@ -1042,25 +1095,18 @@ def _check_backend_health(settings: Settings, backend: str) -> None:
     import urllib.request
     import urllib.error
 
-    _BACKEND_URLS = {
-        "self-hosted": settings.planner_base_url,
-        "mistral": "https://api.mistral.ai/v1",
-        "deepseek": "https://api.deepseek.com/v1",
-        "claude": "https://api.anthropic.com/v1",
-    }
-
-    base_url = _BACKEND_URLS.get(backend)
+    # Use the resolved executor URL directly
+    base_url = settings.executor_base_url
     if not base_url:
         return
 
     models_url = f"{base_url.rstrip('/')}/models"
     try:
         req = urllib.request.Request(models_url, method="GET")
-        # Add auth headers for cloud backends
-        key_attr = _BACKEND_KEY_MAP.get(backend)
-        api_key = getattr(settings, key_attr, "") if key_attr else ""
+        # Add auth header
+        api_key = settings.executor_api_key
         if api_key:
-            if backend == "claude":
+            if "anthropic.com" in base_url:
                 req.add_header("x-api-key", api_key)
                 req.add_header("anthropic-version", "2023-06-01")
             else:

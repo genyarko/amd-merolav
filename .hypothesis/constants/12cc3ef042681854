@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\quality.py
+# hypothesis_version: 6.151.11
+
+[0.1, 0.15, 0.3, 0.4, 0.5, 0.6, 0.9, 0.95, 1.0, 100, '!!', '?', 'Import replacement', 'agent', 'confidence', 'high', 'kernel launch', 'low', 'low confidence', 'manual review', 'needs llm review', 'needs_review', 'rule', 'total', 'unfixed', 'unknown cuda api', '→']

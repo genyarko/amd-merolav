@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\config\model_profiles.py
+# hypothesis_version: 6.151.11
+
+[0.1, 0.6, 'EMPTY', 'api_key', 'base_url', 'claude', 'codestral-latest', 'config_list', 'deepseek', 'deepseek-coder', 'executor', 'fallback', 'mistral', 'model', 'oai_config_list.json', 'optional', 'price', 'self-hosted', 'tags', 'temperature', 'timeout']

@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\logging.py
+# hypothesis_version: 6.151.11
+
+[1024, '%H:%M:%S', 'INFO', 'rocm_migrate', 'utf-8']

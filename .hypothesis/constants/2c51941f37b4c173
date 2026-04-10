@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\chunker.py
+# hypothesis_version: 6.151.11
+
+[4000, '+', '<entire-file>', '<module>', 'class', 'end_lineno', 'function', 'lineno', 'module']

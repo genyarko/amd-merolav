@@ -1,0 +1,17 @@
+{
+  "migrated_code": "\"\"\"Sample CUDA script: pycuda usage with direct API calls.\"\"\"\n\nimport hip.autoinit  # pycuda has no direct ROCm port; use hip-python\nimport hip.driver as cuda  # pycuda has no direct ROCm port; use hip-python\nimport numpy as np\n\n# Allocate memory on device\na = np.random.randn(1024).astype(np.float32)\na_gpu = cuda.mem_alloc(a.nbytes)\ncuda.memcpy_htod(a_gpu, a)\n\n# Some kernel work would happen here\n# kernel_code = '''<<<grid, block>>>'''\n\ncuda.memcpy_dtoh(a, a_gpu)\na_gpu.free()\n",
+  "applied": [
+    {
+      "line": 3,
+      "rule": "Import replacement",
+      "confidence": 0.95
+    },
+    {
+      "line": 4,
+      "rule": "Import replacement",
+      "confidence": 0.95
+    }
+  ],
+  "remaining": [],
+  "cached_at": 1775731732.2743204
+}

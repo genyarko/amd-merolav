@@ -54,10 +54,17 @@ class TestCodeBlockExtraction:
 
 
 class TestFinalCodeExtraction:
-    """Test _extract_final_code which searches message history for the last code block."""
+    """Test _extract_final_code which searches message history for the last code block.
+
+    Note: index 0 is always the seed message (from TaskDispatcher) and is
+    skipped by _extract_final_code to avoid extracting INPUT code blocks.
+    """
+
+    SEED = {"name": "TaskDispatcher", "content": "## Migration Task\n```python\ninput_code\n```"}
 
     def test_finds_last_coder_message(self):
         messages = [
+            self.SEED,
             {"name": "Executor", "content": "```python\nv1\n```"},
             {"name": "Reviewer", "content": "ISSUES FOUND\n1. Fix line 3"},
             {"name": "Executor", "content": "```python\nv2_final\n```"},
@@ -68,6 +75,7 @@ class TestFinalCodeExtraction:
     def test_falls_back_to_any_code_block(self):
         """If no Coder/Executor message has code, find any code block."""
         messages = [
+            self.SEED,
             {"name": "Reviewer", "content": "Here's the fix:\n```python\nfixed\n```"},
         ]
         assert _extract_final_code(messages) == "fixed"
@@ -77,6 +85,7 @@ class TestFinalCodeExtraction:
 
     def test_no_code_blocks_returns_empty(self):
         messages = [
+            self.SEED,
             {"name": "Executor", "content": "I'll work on this."},
             {"name": "Reviewer", "content": "APPROVED"},
         ]
@@ -84,13 +93,23 @@ class TestFinalCodeExtraction:
 
     def test_handles_missing_name_field(self):
         messages = [
+            self.SEED,
             {"role": "assistant", "content": "```python\ncode\n```"},
         ]
         assert _extract_final_code(messages) == "code"
 
     def test_handles_missing_content_field(self):
         messages = [
+            self.SEED,
             {"name": "Executor"},
+        ]
+        assert _extract_final_code(messages) == ""
+
+    def test_ignores_seed_message_code_blocks(self):
+        """Seed message code blocks should NOT be extracted as final code."""
+        messages = [
+            self.SEED,
+            {"name": "Executor", "content": "I need more context to migrate this."},
         ]
         assert _extract_final_code(messages) == ""
 

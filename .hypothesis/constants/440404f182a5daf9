@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\config\settings.py
+# hypothesis_version: 6.151.11
+
+[600, '.env', '.rocm_cache', 'WARNING', 'codestral-latest', 'ignore', 'mistral', 'utf-8']

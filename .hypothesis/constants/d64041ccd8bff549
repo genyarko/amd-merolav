@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\context_budget.py
+# hypothesis_version: 6.151.11
+
+[2000, 4000, 12000, 28000, 180000, 'Any | None', 'claude', 'deepseek', 'mistral', 'self-hosted']

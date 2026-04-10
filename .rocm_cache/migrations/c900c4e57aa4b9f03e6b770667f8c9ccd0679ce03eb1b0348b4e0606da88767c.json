@@ -1,0 +1,27 @@
+{
+  "migrated_code": "\"\"\"Sample CUDA script: multi-GPU with DDP and mixed precision.\"\"\"\n\nimport os\nimport torch\nimport torch.distributed as dist\nimport torch.nn as nn\nfrom torch.nn.parallel import DistributedDataParallel\nfrom torch.cuda.amp import autocast, GradScaler\n\nos.environ[\"HIP_VISIBLE_DEVICES\"] = \"0,1,2,3\"\nos.environ[\"HIP_LAUNCH_BLOCKING\"] = \"1\"\n\n# MIOpen auto-tunes by default on ROCm\n# Set MIOPEN_FIND_MODE=3 env var for exhaustive tuning\ntorch.backends.miopen.enabled = True\n\ndef setup(rank, world_size):\n    dist.init_process_group(\"nccl\", rank=rank, world_size=world_size)\n    torch.cuda.set_device(rank)\n\ndef train(rank, world_size):\n    setup(rank, world_size)\n    device = torch.device(f\"cuda:{rank}\")\n\n    model = nn.Linear(512, 10).to(device)\n    model = DistributedDataParallel(model, device_ids=[rank])\n\n    scaler = GradScaler()\n    optimizer = torch.optim.Adam(model.parameters())\n\n    for step in range(100):\n        x = torch.randn(64, 512, device=device)\n        with autocast():\n            out = model(x)\n            loss = out.sum()\n\n        scaler.scale(loss).backward()\n        scaler.step(optimizer)\n        scaler.update()\n        optimizer.zero_grad()\n\n    dist.destroy_process_group()\n",
+  "applied": [
+    {
+      "line": 13,
+      "rule": "torch.backends.cudnn \u2192 miopen",
+      "confidence": 1.0
+    },
+    {
+      "line": 14,
+      "rule": "torch.backends.cudnn \u2192 miopen",
+      "confidence": 1.0
+    },
+    {
+      "line": 10,
+      "rule": "Environment variable CUDA \u2192 HIP",
+      "confidence": 1.0
+    },
+    {
+      "line": 11,
+      "rule": "Environment variable CUDA \u2192 HIP",
+      "confidence": 1.0
+    }
+  ],
+  "remaining": [],
+  "cached_at": 1775731622.5214796
+}

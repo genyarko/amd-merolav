@@ -131,3 +131,65 @@ class TestTesterValidation:
         code = "import pycuda.autoinit\n"
         result = run_validation(code)
         assert "FAIL" in result
+
+
+# --- Executor config ---
+
+
+class TestExecutorConfig:
+    def test_custom_executor_key_takes_precedence(self):
+        from config.settings import Settings
+        from config.model_profiles import get_executor_config
+
+        s = Settings()
+        s.executor_api_key = "custom-key-123"
+        s.mistral_api_key = "mistral-key-456"
+        config = get_executor_config(s)
+        assert config["config_list"][0]["api_key"] == "custom-key-123"
+
+    def test_falls_back_to_mistral_key(self):
+        from config.settings import Settings
+        from config.model_profiles import get_executor_config
+
+        s = Settings()
+        s.executor_api_key = ""
+        s.mistral_api_key = "mistral-key-456"
+        config = get_executor_config(s)
+        assert config["config_list"][0]["api_key"] == "mistral-key-456"
+
+    def test_falls_back_to_empty_key(self):
+        from config.settings import Settings
+        from config.model_profiles import get_executor_config
+
+        s = Settings()
+        s.executor_api_key = ""
+        s.mistral_api_key = ""
+        config = get_executor_config(s)
+        assert config["config_list"][0]["api_key"] == "EMPTY"
+
+    def test_custom_executor_url_and_model(self):
+        from config.settings import Settings
+        from config.model_profiles import get_executor_config
+
+        s = Settings()
+        s.executor_base_url = "http://10.128.0.2:8002/v1"
+        s.executor_model = "google/gemma-4-31B-it"
+        s.executor_api_key = "EMPTY"
+        config = get_executor_config(s)
+        assert config["config_list"][0]["model"] == "google/gemma-4-31B-it"
+        assert config["config_list"][0]["base_url"] == "http://10.128.0.2:8002/v1"
+
+    def test_context_budget_respects_executor_override(self):
+        from config.settings import Settings
+        from core.context_budget import ContextBudget
+
+        s = Settings()
+        s.executor_context_limit = 50000
+        budget = ContextBudget.for_backend("mistral", settings=s)
+        assert budget.max_tokens == 50000
+
+    def test_context_budget_fallback_for_unknown_backend(self):
+        from core.context_budget import ContextBudget
+
+        budget = ContextBudget.for_backend("some-custom-backend")
+        assert budget.max_tokens == 12000  # safe fallback

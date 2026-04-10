@@ -1,0 +1,4 @@
+# file: C:\Users\genya\Downloads\Rocm\core\audit.py
+# hypothesis_version: 6.151.11
+
+[0.5, 1.0, '-', '...', '?', 'a', 'agent_used', 'applied', 'applied_count', 'backend', 'confidence', 'epoch', 'fail', 'file', 'line', 'optimization_count', 'overall_confidence', 'pass', 'reason', 'remaining', 'remaining_count', 'rule', 'symbol', 'timestamp', 'utf-8', 'validation_passed', 'warnings']
