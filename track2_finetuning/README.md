@@ -47,8 +47,17 @@ python prepare_data.py --data-root /data/ccmt --out splits.json
 # 4. Train
 python train.py --config config.yaml --splits splits.json --output runs/dinov2_l_v1
 
-# 5. Evaluate
+# 5. Evaluate (writes metrics.json, classification_report.txt, confusion_matrix.csv)
 python eval.py --checkpoint runs/dinov2_l_v1/best.pt --splits splits.json --tta 10
+
+# 6. Publish to Hugging Face Hub
+#    - Create a write-scope token at https://huggingface.co/settings/tokens
+#    - publish.sh bundles best.pt + config.yaml + metrics into _release/ and
+#      generates a model card with the P100 baseline comparison
+export HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+bash publish.sh runs/dinov2_l_v1
+# → https://huggingface.co/<your-user>/dinov2-l-ccmt-mi300x
+# Override the target repo with HF_REPO=myuser/custom-name bash publish.sh ...
 ```
 
 ## Design notes
