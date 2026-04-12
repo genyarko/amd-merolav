@@ -1,0 +1,66 @@
+# Track 2 — DINOv2-Large fine-tuning on MI300X
+# Config matches the Kaggle notebook's grouped split (seed=123) for fair comparison.
+
+seed: 123
+
+data:
+  # Root of the CCMT Dataset-Augmented directory (must contain Cashew/, Cassava/, Maize/, Tomato/)
+  root: /data/ccmt/CCMT Dataset-Augmented
+  splits_file: splits.json
+  num_workers: 8
+  pin_memory: true
+
+model:
+  # timm name for DINOv2-Large (ViT-L/14 pretrained on LVD-142M)
+  name: vit_large_patch14_dinov2.lvd142m
+  num_classes: 22
+  drop_path_rate: 0.1
+  # If True, replace the patch embed to accept 224x224 (DINOv2 was trained at 518).
+  # timm handles this automatically via img_size override.
+  img_size: 224
+
+train:
+  # Two-phase training
+  phase1:
+    name: linear_probe
+    epochs: 3
+    freeze_backbone: true
+    lr_head: 1.0e-3
+    lr_backbone: 0.0
+    warmup_epochs: 1
+  phase2:
+    name: full_fine_tune
+    epochs: 12
+    freeze_backbone: false
+    lr_head: 5.0e-4
+    lr_backbone: 5.0e-5
+    layer_decay: 0.75    # discriminative LR: deeper layers get smaller LR
+    warmup_epochs: 1
+
+  batch_size: 64          # fits comfortably on MI300X; push to 128+ for throughput runs
+  grad_accum_steps: 1
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  label_smoothing: 0.1
+  mixup_alpha: 0.2
+  cutmix_alpha: 1.0
+  mixup_prob: 0.5         # chance per batch to apply mixup OR cutmix
+  grad_clip: 1.0
+  amp_dtype: bfloat16     # MI300X has native bf16
+  compile: false          # torch.compile; enable after baseline runs stabilize
+
+augment:
+  rand_augment_n: 2
+  rand_augment_m: 9
+  random_erasing_p: 0.25
+  horizontal_flip: true
+  vertical_flip: false    # leaves have an up/down orientation — skip
+
+eval:
+  batch_size: 128
+  tta_rounds: 10
+
+log:
+  every_n_steps: 50
+  checkpoint_dir: runs
+  save_best_metric: val_macro_f1   # optimize for macro F1, not headline acc
