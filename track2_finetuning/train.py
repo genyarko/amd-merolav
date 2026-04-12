@@ -9,7 +9,7 @@ Run:
 """
 from __future__ import annotations
 
-import argparse, json, math, random, time
+import argparse, json, math, random, shutil, time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -126,8 +126,14 @@ class Best:
     patience: int = 0
 
 
-def train(cfg, splits):
+def _unwrap_state_dict(sd):
+    """Strip torch.compile's ``_orig_mod.`` key prefix for clean checkpoints."""
+    return {k.replace("_orig_mod.", "", 1): v for k, v in sd.items()}
+
+
+def train(cfg, splits, out_dir: Path):
     device = torch.device("cuda")
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- datasets ---- #
     train_ds = CCMTDataset(splits["train"], build_transforms(cfg, True))
@@ -182,6 +188,7 @@ def train(cfg, splits):
     )
 
     best = Best()
+    history = []
 
     for epoch in range(cfg["train"]["epochs"]):
         model.train()
@@ -213,18 +220,32 @@ def train(cfg, splits):
         speed = len(train_ds) / (time.time() - t0)
 
         print(f"epoch {epoch+1} | acc={acc:.4f} f1={f1:.4f} {speed:.0f} img/s")
+        history.append({"epoch": epoch + 1, "val_acc": acc, "val_macro_f1": f1,
+                        "images_per_sec": round(speed, 1)})
 
         # ---- early stopping on F1 ---- #
         if f1 > best.f1:
             best.f1 = f1
             best.patience = 0
-            torch.save(model.state_dict(), "best.pt")
+            torch.save(
+                {"state_dict": _unwrap_state_dict(model.state_dict()),
+                 "cfg": cfg,
+                 "epoch": epoch + 1,
+                 "val_acc": acc,
+                 "val_macro_f1": f1},
+                out_dir / "best.pt",
+            )
         else:
             best.patience += 1
+
+        (out_dir / "metrics.json").write_text(json.dumps(
+            {"history": history, "best": {"epoch_f1": best.f1}}, indent=2))
 
         if best.patience >= 5:
             print("Early stopping triggered")
             break
+
+    print(f"[train] best val_macro_f1={best.f1:.4f}  artifacts in {out_dir}")
 
 
 # ------------------ Main ------------------ #
@@ -232,13 +253,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, required=True)
     ap.add_argument("--splits", type=Path, required=True)
+    ap.add_argument("--output", type=Path, default=Path("runs/dinov2_l_v1"),
+                    help="run directory — best.pt, metrics.json, config.yaml land here")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(args.config.read_text())
     splits = json.loads(args.splits.read_text())
 
+    args.output.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(args.config, args.output / "config.yaml")
+
     set_seed(cfg["seed"])
-    train(cfg, splits)
+    train(cfg, splits, args.output)
 
 
 if __name__ == "__main__":

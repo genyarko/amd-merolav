@@ -79,7 +79,24 @@ def main():
     args = ap.parse_args()
 
     ckpt = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    cfg = yaml.safe_load(args.config.read_text()) if args.config else ckpt["cfg"]
+
+    # Tolerate both formats: wrapped {"state_dict": ..., "cfg": ...} or a raw state_dict.
+    if isinstance(ckpt, dict) and "state_dict" in ckpt:
+        state_dict = ckpt["state_dict"]
+        ckpt_cfg = ckpt.get("cfg")
+    else:
+        state_dict = ckpt
+        ckpt_cfg = None
+
+    if args.config:
+        cfg = yaml.safe_load(args.config.read_text())
+    elif ckpt_cfg is not None:
+        cfg = ckpt_cfg
+    else:
+        raise SystemExit("checkpoint has no embedded cfg — pass --config explicitly")
+
+    # Strip torch.compile's ``_orig_mod.`` prefix if present.
+    state_dict = {k.replace("_orig_mod.", "", 1): v for k, v in state_dict.items()}
 
     splits = json.loads(args.splits.read_text())
     idx_to_class = {v: k for k, v in splits["class_to_idx"].items()}
@@ -96,7 +113,7 @@ def main():
         num_classes=cfg["model"]["num_classes"],
         img_size=cfg["model"]["img_size"],
     )
-    model.load_state_dict(ckpt["state_dict"])
+    model.load_state_dict(state_dict)
     model.to(device)
 
     # Standard
