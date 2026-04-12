@@ -7,7 +7,7 @@ data:
   # Root of the CCMT Dataset-Augmented directory (must contain Cashew/, Cassava/, Maize/, Tomato/)
   root: /data/ccmt/CCMT Dataset-Augmented
   splits_file: splits.json
-  num_workers: 8
+  num_workers: 4       # Docker's default /dev/shm (64 MB) can't fit 8 workers × bs=256 prefetch
   pin_memory: true
 
 model:

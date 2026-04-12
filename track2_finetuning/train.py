@@ -70,8 +70,8 @@ def build_transforms(cfg, is_train):
             auto_augment=f"rand-m{cfg['augment']['rand_augment_m']}-n{cfg['augment']['rand_augment_n']}",
             re_prob=cfg["augment"]["random_erasing_p"],
             re_mode="pixel",
-            hflip=0.5,
-            vflip=0.5,
+            hflip=0.5 if cfg["augment"].get("horizontal_flip", True) else 0.0,
+            vflip=0.5 if cfg["augment"].get("vertical_flip", False) else 0.0,
             interpolation="bicubic",
         )
 
@@ -215,6 +215,9 @@ def train(cfg, splits, out_dir: Path):
 
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
+            grad_clip = cfg["train"].get("grad_clip", 0.0)
+            if grad_clip:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
             optimizer.step()
 
         acc, f1 = evaluate(model, val_loader, device)
