@@ -36,7 +36,7 @@ track2_finetuning/
 ```bash
 # 1. SSH into the droplet and clone this repo
 ssh root@129.212.184.180
-git clone https://github.com/genyarko/amd-merolav && cd Rocm/track2_finetuning
+git clone https://github.com/genyarko/amd-merolav && cd amd-merolav/track2_finetuning
 
 # 2. Install ROCm PyTorch + deps (uses official rocm/pytorch container)
 bash setup_rocm.sh
