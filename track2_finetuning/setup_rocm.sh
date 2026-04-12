@@ -49,6 +49,23 @@ pip install -r requirements.txt
 pip install huggingface_hub
 
 # ---------------------------------------------------------------
+# 3b) Guard: if a torch dep pulled in a CUDA build, remove it so the
+#     --system-site-packages ROCm torch wins again. timm on PyPI
+#     depends on torch and will install a fresh CUDA wheel by default.
+# ---------------------------------------------------------------
+python - <<'PY'
+import sys, torch, subprocess
+hip = getattr(torch.version, "hip", None)
+if not hip:
+    print(f"[setup] venv torch={torch.__version__} has no HIP — uninstalling "
+          f"so system ROCm torch is used via --system-site-packages")
+    subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y",
+                           "torch", "torchvision", "torchaudio"])
+else:
+    print(f"[setup] venv torch has ROCm ({hip}) — ok")
+PY
+
+# ---------------------------------------------------------------
 # 4) GPU visibility sanity
 # ---------------------------------------------------------------
 python - <<'PY'
