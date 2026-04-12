@@ -37,7 +37,12 @@ train:
     layer_decay: 0.75    # discriminative LR: deeper layers get smaller LR
     warmup_epochs: 1
 
-  batch_size: 64          # fits comfortably on MI300X; push to 128+ for throughput runs
+  # Flat-schedule settings used by the simplified single-phase train.py.
+  # (The phase1/phase2 block above is retained for reference / future revival.)
+  lr: 1.0e-4              # unified LR across backbone + head — safe for DINOv2-L FT
+  epochs: 15              # 3 (warmup-equivalent) + 12 (full FT) — matches old two-phase budget
+
+  batch_size: 256         # benchmark showed saturation at BS=256 (499 img/s, 70GB VRAM)
   grad_accum_steps: 1
   weight_decay: 0.05
   betas: [0.9, 0.999]
