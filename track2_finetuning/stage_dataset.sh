@@ -1,62 +1,72 @@
 #!/usr/bin/env bash
-# Download and extract the Mendeley CCMT dataset on the MI300X droplet.
+# Download the CCMT crop-disease dataset from Kaggle on the MI300X droplet.
 #
-# The Mendeley presigned URL expires in ~5 minutes, so pass it fresh each time:
+# Requires a Kaggle API token at ~/.kaggle/kaggle.json (chmod 600).
+# Get one at: https://www.kaggle.com/settings → "Create New Token".
 #
-#   DATA_URL='https://prod-dcd-datasets-cache-zipfiles.s3...' \
-#   DATA_ROOT=/data/ccmt \
-#   bash stage_dataset.sh
+# One-liner to set it up if you have the token content:
+#   mkdir -p ~/.kaggle && nano ~/.kaggle/kaggle.json   # paste, save
+#   chmod 600 ~/.kaggle/kaggle.json
 #
-# Get a fresh URL from: https://data.mendeley.com/datasets/bwh3zbpkpv/1
-# (right-click the download button → copy link).
+# Usage:
+#   DATA_ROOT=/workspace/data/ccmt bash stage_dataset.sh
 #
-# After extraction, $DATA_ROOT/CCMT Dataset-Augmented/ should contain
-# Cashew/ Cassava/ Maize/ Tomato/.
+# Override the dataset slug if you want a different copy:
+#   KAGGLE_DATASET=merolavtechnology/dataset-for-crop-pest-and-disease-detection
 
 set -euo pipefail
 
-: "${DATA_URL:?Set DATA_URL to the Mendeley presigned S3 URL (fresh, 5min expiry)}"
-DATA_ROOT="${DATA_ROOT:-/data/ccmt}"
+DATA_ROOT="${DATA_ROOT:-/workspace/data/ccmt}"
+KAGGLE_DATASET="${KAGGLE_DATASET:-merolavtechnology/dataset-for-crop-pest-and-disease-detection}"
 
-echo "[stage] target: $DATA_ROOT"
+# ---------------------------------------------------------------
+# 1) Credential check
+# ---------------------------------------------------------------
+if [ ! -f "$HOME/.kaggle/kaggle.json" ]; then
+  echo "[stage] ERROR: ~/.kaggle/kaggle.json not found."
+  echo "        1) Go to https://www.kaggle.com/settings"
+  echo "        2) Click 'Create New Token' — downloads kaggle.json"
+  echo "        3) On the droplet:"
+  echo "             mkdir -p ~/.kaggle"
+  echo "             nano ~/.kaggle/kaggle.json    # paste JSON, save"
+  echo "             chmod 600 ~/.kaggle/kaggle.json"
+  exit 1
+fi
+chmod 600 "$HOME/.kaggle/kaggle.json"
+
+# ---------------------------------------------------------------
+# 2) Install kaggle CLI (inside container / venv)
+# ---------------------------------------------------------------
+if ! command -v kaggle >/dev/null 2>&1; then
+  echo "[stage] installing kaggle CLI"
+  pip install --quiet kaggle || pip install --quiet --break-system-packages kaggle
+fi
+
+# ---------------------------------------------------------------
+# 3) Download + unzip
+# ---------------------------------------------------------------
 mkdir -p "$DATA_ROOT"
 cd "$DATA_ROOT"
 
-ZIP_PATH="${DATA_ROOT}/ccmt.zip"
+echo "[stage] kaggle datasets download -d $KAGGLE_DATASET"
+kaggle datasets download -d "$KAGGLE_DATASET" --unzip
 
-if [ -f "$ZIP_PATH" ]; then
-  echo "[stage] zip already present at $ZIP_PATH — skipping download"
-else
-  echo "[stage] downloading zip (~several GB, this takes a few minutes)"
-  # -L follow redirects, -f fail on HTTP errors, -C - resume if partial
-  curl -L -f -C - -o "$ZIP_PATH" "$DATA_URL"
-fi
-
-echo "[stage] size on disk:"
-ls -lh "$ZIP_PATH"
-
-echo "[stage] extracting"
-# -n = never overwrite, so re-runs are cheap
-unzip -q -n "$ZIP_PATH" -d "$DATA_ROOT"
-
-echo "[stage] inspecting layout"
+echo "[stage] layout:"
 find "$DATA_ROOT" -maxdepth 3 -type d | head -40
 
-# Sanity check: locate "CCMT Dataset-Augmented"
-AUG_DIR=$(find "$DATA_ROOT" -maxdepth 4 -type d -name "CCMT Dataset-Augmented" | head -1)
+# ---------------------------------------------------------------
+# 4) Locate CCMT Dataset-Augmented
+# ---------------------------------------------------------------
+AUG_DIR=$(find "$DATA_ROOT" -maxdepth 5 -type d -name "CCMT Dataset-Augmented" | head -1)
 if [ -z "$AUG_DIR" ]; then
-  echo "[stage] ERROR: could not find 'CCMT Dataset-Augmented' after extract"
-  echo "        Inspect $DATA_ROOT manually and set --data-root accordingly."
+  echo "[stage] ERROR: 'CCMT Dataset-Augmented' folder not found after extract."
+  echo "        Inspect $DATA_ROOT manually."
   exit 1
 fi
 
-echo "[stage] augmented dataset: $AUG_DIR"
-echo "[stage] class folders:"
-ls "$AUG_DIR" || true
-
 IMG_COUNT=$(find "$AUG_DIR" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' \) | wc -l)
-echo "[stage] total images under augmented dir: $IMG_COUNT"
-
+echo "[stage] augmented dataset: $AUG_DIR"
+echo "[stage] image count:       $IMG_COUNT  (expect ~105k)"
 echo
-echo "[stage] Done. Use this path with prepare_data.py:"
+echo "[stage] Done. Next:"
 echo "  python prepare_data.py --data-root \"$AUG_DIR\" --out splits.json"
