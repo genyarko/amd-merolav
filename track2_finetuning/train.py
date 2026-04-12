@@ -155,6 +155,7 @@ def train(cfg, splits, out_dir: Path):
         sampler=sampler,
         num_workers=cfg["data"]["num_workers"],
         pin_memory=True,
+        drop_last=True,   # timm Mixup requires even batch sizes; drop the trailing partial
     )
 
     val_loader = DataLoader(
