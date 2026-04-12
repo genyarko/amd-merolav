@@ -31,12 +31,19 @@ BASELINE_P100 = {
 }
 
 
-def run_bench(model_name, img_size, batch_size, steps, device, amp_dtype, train=True):
+def run_bench(model_name, img_size, batch_size, steps, device, amp_dtype,
+              train=True, channels_last=False, compile_model=False):
     model = timm.create_model(model_name, pretrained=False, num_classes=22,
                               img_size=img_size).to(device)
+    if channels_last:
+        model = model.to(memory_format=torch.channels_last)
+    if compile_model:
+        model = torch.compile(model)
     model.train(train)
     optim = torch.optim.AdamW(model.parameters(), lr=1e-4)
     x = torch.randn(batch_size, 3, img_size, img_size, device=device)
+    if channels_last:
+        x = x.to(memory_format=torch.channels_last)
     y = torch.randint(0, 22, (batch_size,), device=device)
 
     # Warmup
@@ -88,6 +95,10 @@ def main():
     ap.add_argument("--steps", type=int, default=20)
     ap.add_argument("--output", type=Path, default=Path("benchmark_results.json"))
     ap.add_argument("--mode", choices=["train", "eval", "both"], default="both")
+    ap.add_argument("--channels-last", action="store_true",
+                    help="use NHWC memory format — usually faster for vision on ROCm")
+    ap.add_argument("--compile", action="store_true",
+                    help="wrap model in torch.compile")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(args.config.read_text())
@@ -112,7 +123,8 @@ def main():
         for m in modes:
             try:
                 r = run_bench(cfg["model"]["name"], cfg["model"]["img_size"],
-                              bs, args.steps, device, amp_dtype, train=(m == "train"))
+                              bs, args.steps, device, amp_dtype, train=(m == "train"),
+                              channels_last=args.channels_last, compile_model=args.compile)
                 print(f"  bs={bs:>4d}  {m:<5s}  "
                       f"{r['images_per_sec']:>7.1f} img/s   "
                       f"peak VRAM {r['peak_vram_gb']:>5.1f} GB")
