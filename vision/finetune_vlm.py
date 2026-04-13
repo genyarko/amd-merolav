@@ -119,66 +119,79 @@ class VLMDataset(Dataset):
         return result
 
     def _mask_non_assistant_tokens(self, input_ids: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        """Mask all tokens that are not part of assistant responses."""
-        # Find the assistant header token sequences and only keep tokens
-        # between assistant header end and next header/EOS
-        # Strategy: find "assistant" token spans, unmask only what follows
+        """Mask all tokens that are not part of assistant responses.
+
+        Uses token ID matching instead of decode→re-encode, which avoids
+        off-by-one errors from tokenizer round-trip inconsistencies.
+        """
         tokenizer = self.processor.tokenizer
 
-        # Decode to find assistant response boundaries
-        text = tokenizer.decode(input_ids, skip_special_tokens=False)
-
+        # Get the token IDs for the boundary markers
         # Llama 3.2 uses <|start_header_id|>assistant<|end_header_id|> as markers
-        assistant_marker = "<|start_header_id|>assistant<|end_header_id|>"
-        end_marker = "<|eot_id|>"
+        header_start_id = tokenizer.convert_tokens_to_ids("<|start_header_id|>")
+        header_end_id = tokenizer.convert_tokens_to_ids("<|end_header_id|>")
+        eot_id = tokenizer.convert_tokens_to_ids("<|eot_id|>")
+        assistant_token_ids = tokenizer.encode("assistant", add_special_tokens=False)
 
         # Start with everything masked
         labels[:] = -100
 
-        # Find assistant response spans in the decoded text
-        pos = 0
-        while True:
-            start = text.find(assistant_marker, pos)
-            if start == -1:
-                break
-            # Response starts after the marker + newline
-            resp_start = start + len(assistant_marker)
-            # Skip the newline that follows the header
-            if resp_start < len(text) and text[resp_start] == "\n":
-                resp_start += 1
+        ids = input_ids.tolist()
+        n = len(ids)
+        i = 0
 
-            # Response ends at the next eot or end of text
-            resp_end = text.find(end_marker, resp_start)
-            if resp_end == -1:
-                resp_end = len(text)
+        while i < n:
+            # Look for <|start_header_id|> assistant <|end_header_id|>
+            if ids[i] == header_start_id:
+                # Check if this is an assistant header
+                ast_len = len(assistant_token_ids)
+                ast_start = i + 1
+                ast_end = ast_start + ast_len
+                if (ast_end < n
+                        and ids[ast_start:ast_end] == assistant_token_ids
+                        and ids[ast_end] == header_end_id):
+                    # Found assistant header — skip past it (and the newline after)
+                    resp_start = ast_end + 1
+                    # Skip newline token if present (token ID 271 = "\n" in Llama)
+                    if resp_start < n and tokenizer.decode([ids[resp_start]]).strip() == "":
+                        resp_start += 1
 
-            # Map character positions back to token positions
-            # Encode the prefix to find the token offset
-            prefix_tokens = tokenizer.encode(text[:resp_start], add_special_tokens=False)
-            response_tokens = tokenizer.encode(text[:resp_end], add_special_tokens=False)
+                    # Find the end: next <|eot_id|> or end of sequence
+                    resp_end = resp_start
+                    while resp_end < n and ids[resp_end] != eot_id:
+                        resp_end += 1
 
-            tok_start = len(prefix_tokens)
-            tok_end = len(response_tokens)
+                    # Unmask the assistant response tokens + the eot token
+                    eot_end = min(resp_end + 1, n)
+                    labels[resp_start:eot_end] = input_ids[resp_start:eot_end]
 
-            # Unmask assistant response tokens (including the eot token)
-            eot_end = min(tok_end + 1, len(labels))
-            labels[tok_start:eot_end] = input_ids[tok_start:eot_end]
-
-            pos = resp_end + len(end_marker)
+                    i = eot_end
+                    continue
+            i += 1
 
         return labels
 
 
 def collate_fn(batch: list[dict]) -> dict:
-    """Stack batch items, handling variable-size tensors with padding."""
+    """Stack batch items. All tensors are pre-padded to max_length by the
+    processor, so shapes match and torch.stack works directly."""
     keys = batch[0].keys()
     collated = {}
     for k in keys:
         tensors = [item[k] for item in batch]
-        if tensors[0].dim() == 0:
+        try:
             collated[k] = torch.stack(tensors)
-        else:
-            collated[k] = torch.stack(tensors)
+        except RuntimeError:
+            # Fallback: if shapes don't match (shouldn't happen with
+            # padding="max_length"), pad to the largest in the batch
+            max_len = max(t.shape[-1] for t in tensors)
+            padded = []
+            for t in tensors:
+                if t.shape[-1] < max_len:
+                    pad_size = max_len - t.shape[-1]
+                    t = torch.nn.functional.pad(t, (0, pad_size), value=0)
+                padded.append(t)
+            collated[k] = torch.stack(padded)
     return collated
 
 
@@ -192,17 +205,31 @@ def build_model_and_processor(cfg: dict):
     model_name = cfg["model"]["name"]
     print(f"[model] Loading {model_name}...")
 
-    processor = AutoProcessor.from_pretrained(model_name)
+    # Llama 3.2 Vision is a gated model — needs HF token
+    # Set via: huggingface-cli login, or HF_TOKEN env var
+    import os
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token:
+        print("[model] Using HF_TOKEN from environment")
 
-    # Ensure pad token is set
+    processor = AutoProcessor.from_pretrained(model_name, token=hf_token)
+
+    # Ensure pad token is set (must differ from eos so the model learns to emit eos)
     if processor.tokenizer.pad_token is None:
-        processor.tokenizer.pad_token = processor.tokenizer.eos_token
+        processor.tokenizer.pad_token = "<|finetune_right_pad_id|>"
+    # Left-pad so the last token is always the response end, not a pad
+    processor.tokenizer.padding_side = "right"
 
     model = MllamaForConditionalGeneration.from_pretrained(
         model_name,
         torch_dtype=torch.bfloat16,
         device_map="auto",
+        token=hf_token,
     )
+
+    # Freeze the vision encoder — only train the language model via LoRA
+    for param in model.vision_model.parameters():
+        param.requires_grad = False
 
     # Apply LoRA
     lora_cfg = cfg["lora"]
@@ -241,7 +268,8 @@ def evaluate(model, loader, device) -> float:
 
     for batch in loader:
         batch = {k: v.to(device) for k, v in batch.items()}
-        outputs = model(**batch)
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            outputs = model(**batch)
         # Count non-masked label tokens for proper averaging
         n_tokens = (batch["labels"] != -100).sum().item()
         total_loss += outputs.loss.item() * n_tokens
@@ -254,10 +282,13 @@ def evaluate(model, loader, device) -> float:
 # --------------- Training --------------- #
 
 def train(cfg: dict, train_path: Path, val_path: Path, out_dir: Path):
-    device = torch.device("cuda")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     model, processor = build_model_and_processor(cfg)
+
+    # With device_map="auto", the model places tensors on the right device.
+    # We need to know which device to move batch tensors to.
+    device = next(model.parameters()).device
 
     # Datasets
     print("[data] Loading training data...")
@@ -267,11 +298,14 @@ def train(cfg: dict, train_path: Path, val_path: Path, out_dir: Path):
     val_ds = VLMDataset(val_path, processor, max_length=cfg["train"]["max_length"])
     print(f"[data] Val: {len(val_ds)} examples")
 
+    # num_workers=0 because the dataset holds a reference to the processor
+    # (tokenizer + image processor), which can fail to pickle across workers.
+    # The bottleneck is GPU forward/backward, not data loading.
     train_loader = DataLoader(
         train_ds,
         batch_size=cfg["train"]["batch_size"],
         shuffle=True,
-        num_workers=cfg["data"]["num_workers"],
+        num_workers=0,
         pin_memory=True,
         drop_last=True,
         collate_fn=collate_fn,
@@ -281,7 +315,7 @@ def train(cfg: dict, train_path: Path, val_path: Path, out_dir: Path):
         val_ds,
         batch_size=cfg["train"]["batch_size"],
         shuffle=False,
-        num_workers=cfg["data"]["num_workers"],
+        num_workers=0,
         pin_memory=True,
         collate_fn=collate_fn,
     )
