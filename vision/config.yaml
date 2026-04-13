@@ -1,0 +1,39 @@
+# Track 3 — Llama 3.2 Vision 11B fine-tuning on MI300X
+# Plant disease diagnosis + treatment QA
+
+seed: 42
+
+data:
+  num_workers: 4       # same /dev/shm constraint as Track 2
+
+model:
+  name: meta-llama/Llama-3.2-11B-Vision-Instruct
+  # 11B params total, ~4B vision encoder + ~7B language model
+  # BF16 weights ≈ 22 GB, LoRA adapters add ~100-200 MB
+
+lora:
+  rank: 16
+  alpha: 32             # alpha = 2x rank is a safe default
+  dropout: 0.05
+  target_modules:       # target the attention layers in the language model
+    - q_proj
+    - v_proj
+    - k_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+train:
+  epochs: 5
+  batch_size: 4          # VLM + images are memory-heavy; 4 is safe on 192 GB
+  grad_accum_steps: 4    # effective batch size = 16
+  lr: 2.0e-5
+  weight_decay: 0.01
+  betas: [0.9, 0.999]
+  warmup_ratio: 0.1
+  grad_clip: 1.0
+  max_length: 2048       # max sequence length (covers image tokens + QA text)
+
+log:
+  every_n_steps: 25

@@ -1,0 +1,288 @@
+{
+  "cashew_anthracnose": {
+    "crop": "Cashew",
+    "disease": "Anthracnose",
+    "pathogen": "Colletotrichum gloeosporioides",
+    "symptoms": "Dark, sunken lesions on leaves, twigs, and nuts. Leaves show irregular brown-black spots that may merge, causing defoliation. Flower blight reduces nut set.",
+    "severity_cues": {
+      "mild": "A few scattered dark spots on leaves, less than 10% leaf area affected.",
+      "moderate": "Multiple merging lesions covering 10-40% of leaf area, some twig dieback visible.",
+      "severe": "Extensive necrosis, heavy defoliation, flower blight, and nut drop."
+    },
+    "treatment": "Prune and destroy infected branches. Apply copper-based fungicides (e.g., Bordeaux mixture) preventively before flowering. Use systemic fungicides like carbendazim or mancozeb during wet seasons. Ensure proper spacing for air circulation.",
+    "prevention": "Plant resistant varieties. Maintain canopy hygiene by removing fallen debris. Avoid overhead irrigation. Apply fungicides at early flowering stage."
+  },
+  "cashew_gumosis": {
+    "crop": "Cashew",
+    "disease": "Gummosis",
+    "pathogen": "Lasiodiplodia theobromae",
+    "symptoms": "Exudation of gummy, resinous sap from trunk and branches. Bark cracking and peeling. Wilting and drying of affected branches.",
+    "severity_cues": {
+      "mild": "Small gum deposits on one or two branches, tree otherwise healthy.",
+      "moderate": "Multiple branches showing gum exudation, some bark cracking.",
+      "severe": "Extensive gum flow from the main trunk, branch dieback, canopy thinning."
+    },
+    "treatment": "Remove and burn heavily infected branches. Apply copper oxychloride paste to wounds after pruning. Improve tree vigor with balanced fertilization. Avoid mechanical injuries to the trunk.",
+    "prevention": "Avoid wounding trees during harvesting. Maintain tree health with proper nutrition. Apply Bordeaux paste to pruning wounds. Ensure good drainage around the root zone."
+  },
+  "cashew_healthy": {
+    "crop": "Cashew",
+    "disease": "Healthy",
+    "pathogen": null,
+    "symptoms": "No disease symptoms. Leaves are uniformly green, smooth, and intact. No lesions, spots, or discoloration.",
+    "severity_cues": {
+      "mild": "N/A — plant appears healthy.",
+      "moderate": "N/A — plant appears healthy.",
+      "severe": "N/A — plant appears healthy."
+    },
+    "treatment": "No treatment needed. Continue standard care practices.",
+    "prevention": "Maintain regular fertilization schedule. Monitor for early signs of pest or disease. Ensure proper irrigation and drainage."
+  },
+  "cashew_leaf_miner": {
+    "crop": "Cashew",
+    "disease": "Leaf Miner",
+    "pathogen": "Acrocercops syngramma (insect pest)",
+    "symptoms": "Serpentine mines (winding trails) visible on leaf surfaces. Leaves appear blistered with silvery or whitish patches. Heavily mined leaves curl and dry up.",
+    "severity_cues": {
+      "mild": "A few visible mines on scattered leaves, less than 10% of canopy affected.",
+      "moderate": "Multiple mines per leaf on 10-30% of canopy, some leaf curling.",
+      "severe": "Most leaves heavily mined, extensive curling, premature leaf drop."
+    },
+    "treatment": "Spray neem oil or neem-based insecticides. Use systemic insecticides like monocrotophos for severe infestations. Remove and destroy heavily infested leaves. Encourage natural predators like parasitic wasps.",
+    "prevention": "Monitor for early signs of mining trails. Apply neem cake to soil around trees. Avoid excessive nitrogen fertilization which promotes tender growth. Use pheromone traps for adult moths."
+  },
+  "cashew_red_rust": {
+    "crop": "Cashew",
+    "disease": "Red Rust",
+    "pathogen": "Cephaleuros virescens (algal disease)",
+    "symptoms": "Reddish-orange, velvety patches on upper leaf surface. Affected areas are slightly raised. Leaves may show premature aging around affected spots.",
+    "severity_cues": {
+      "mild": "A few small reddish patches on older leaves.",
+      "moderate": "Multiple patches on 20-40% of leaves, some premature leaf drop.",
+      "severe": "Widespread rust-colored patches across most leaves and twigs."
+    },
+    "treatment": "Apply copper-based fungicides (copper hydroxide or copper oxychloride). Prune affected branches to improve air circulation. Apply during early onset for best results.",
+    "prevention": "Ensure good canopy ventilation through proper spacing and pruning. Avoid waterlogged conditions. Apply preventive copper sprays before the rainy season."
+  },
+  "cassava_bacterial_blight": {
+    "crop": "Cassava",
+    "disease": "Bacterial Blight",
+    "pathogen": "Xanthomonas axonopodis pv. manihotis",
+    "symptoms": "Angular, water-soaked leaf spots that turn brown. Wilting and drooping of shoot tips. Gum exudation from stems. In severe cases, complete shoot dieback.",
+    "severity_cues": {
+      "mild": "Small angular spots on a few leaves, plant otherwise growing normally.",
+      "moderate": "Multiple leaves with expanding lesions, some tip wilting visible.",
+      "severe": "Widespread wilting, stem gum exudation, shoot dieback, plant collapse."
+    },
+    "treatment": "Remove and burn infected plant parts immediately. There are no effective chemical treatments — management is primarily cultural. Use disease-free planting material. Rotate crops to break disease cycle.",
+    "prevention": "Use certified disease-free stem cuttings. Plant resistant varieties (e.g., TME 419, IITA-improved lines). Avoid working in fields when plants are wet. Practice crop rotation with non-host crops for 2-3 seasons."
+  },
+  "cassava_brown_spot": {
+    "crop": "Cassava",
+    "disease": "Brown Leaf Spot",
+    "pathogen": "Cercosporidium henningsii",
+    "symptoms": "Circular to irregular brown spots on both leaf surfaces. Spots have a dark brown center with a lighter brown margin. Older leaves affected first.",
+    "severity_cues": {
+      "mild": "Small scattered brown spots on lower leaves only.",
+      "moderate": "Spots on multiple leaf levels, some leaf yellowing.",
+      "severe": "Extensive spotting, premature defoliation of lower canopy."
+    },
+    "treatment": "Apply copper-based fungicides or mancozeb. Remove and destroy severely infected lower leaves. Improve air circulation by adjusting plant spacing.",
+    "prevention": "Plant resistant cultivars. Avoid excessive plant density. Practice crop rotation. Remove crop residues after harvest."
+  },
+  "cassava_green_mite": {
+    "crop": "Cassava",
+    "disease": "Green Mite Damage",
+    "pathogen": "Mononychellus tanajoa (spider mite)",
+    "symptoms": "Pale yellow spotting (chlorosis) on young leaves. Leaves become reduced in size and distorted. Growing points may appear bushy due to shortened internodes. In dry conditions, leaves may appear scorched.",
+    "severity_cues": {
+      "mild": "Light chlorotic speckling on newest leaves, plant growth unaffected.",
+      "moderate": "Noticeable leaf size reduction, moderate chlorosis on several leaves.",
+      "severe": "Severe leaf distortion, stunted growth, candle-stick appearance of growing points."
+    },
+    "treatment": "Introduce biological control agents (predatory mites like Typhlodromalus aripo). Apply sulfur-based or abamectin miticides for severe outbreaks. Irrigate plants during dry spells to reduce mite pressure.",
+    "prevention": "Use resistant/tolerant varieties. Plant early in the rainy season to establish before dry-season mite buildup. Avoid carrying infested planting material between fields. Conserve natural enemies."
+  },
+  "cassava_healthy": {
+    "crop": "Cassava",
+    "disease": "Healthy",
+    "pathogen": null,
+    "symptoms": "No disease symptoms. Leaves are characteristically palmate (lobed), uniformly green, and turgid. No spots, wilting, or discoloration.",
+    "severity_cues": {
+      "mild": "N/A — plant appears healthy.",
+      "moderate": "N/A — plant appears healthy.",
+      "severe": "N/A — plant appears healthy."
+    },
+    "treatment": "No treatment needed. Continue standard care practices.",
+    "prevention": "Use disease-free planting material. Maintain proper spacing and weed management. Apply balanced fertilization."
+  },
+  "cassava_mosaic": {
+    "crop": "Cassava",
+    "disease": "Mosaic Disease",
+    "pathogen": "Cassava Mosaic Geminiviruses (CMGs), transmitted by whitefly (Bemisia tabaci)",
+    "symptoms": "Distorted leaves with mosaic pattern of yellow and green patches. Leaf size reduction and curling. Stunted plant growth. Reduced tuber yield.",
+    "severity_cues": {
+      "mild": "Light mosaic pattern on a few leaves, plant growth mostly normal.",
+      "moderate": "Clear mosaic on multiple leaves, noticeable size reduction and some curling.",
+      "severe": "Severe distortion, stunting, most leaves showing strong mosaic, significant yield loss."
+    },
+    "treatment": "No chemical cure exists. Remove and destroy severely infected plants (roguing). Replant with virus-free, resistant cuttings. Control whitefly vectors with neem-based insecticides or yellow sticky traps.",
+    "prevention": "Plant CMD-resistant varieties (e.g., IITA-bred TME lines). Source planting material from certified disease-free nurseries. Control whitefly populations. Practice phytosanitation."
+  },
+  "maize_fall_armyworm": {
+    "crop": "Maize",
+    "disease": "Fall Armyworm Damage",
+    "pathogen": "Spodoptera frugiperda (insect pest)",
+    "symptoms": "Ragged feeding damage on leaves with visible frass (excrement). Larvae bore into the whorl, causing 'windowpane' effect on leaves. Older larvae may bore into ears and tassels.",
+    "severity_cues": {
+      "mild": "A few leaves showing small feeding holes, larvae just arrived.",
+      "moderate": "Multiple leaves with ragged holes, frass visible in whorl, small-medium larvae present.",
+      "severe": "Extensive defoliation, larvae in most whorls, potential ear damage."
+    },
+    "treatment": "Apply Bt (Bacillus thuringiensis) sprays for early-stage larvae. Use emamectin benzoate or chlorantraniliprole for larger larvae. Apply into the whorl where larvae hide. Handpick larvae in small plots.",
+    "prevention": "Plant early to avoid peak armyworm season. Use Bt-maize varieties where available. Scout fields weekly during vegetative stage. Encourage natural enemies (parasitic wasps, birds). Use pheromone traps for monitoring."
+  },
+  "maize_grasshopper": {
+    "crop": "Maize",
+    "disease": "Grasshopper Damage",
+    "pathogen": "Various grasshopper species (Orthoptera)",
+    "symptoms": "Irregular, chewed leaf margins. Leaves may be stripped to the midrib in severe cases. Feeding starts from leaf edges inward.",
+    "severity_cues": {
+      "mild": "Minor leaf edge feeding on scattered plants.",
+      "moderate": "Noticeable defoliation on many plants, some leaves stripped to midrib.",
+      "severe": "Severe defoliation across the field, many leaves reduced to midribs."
+    },
+    "treatment": "Apply carbaryl or malathion for severe outbreaks. Use bait formulations (bran + insecticide) along field borders. Biological control with Nosema locustae (grasshopper pathogen). Hand-collect in small fields.",
+    "prevention": "Maintain clean field borders to reduce egg-laying sites. Early planting reduces overlap with grasshopper hatching season. Encourage birds and other natural predators. Till soil after harvest to expose eggs."
+  },
+  "maize_healthy": {
+    "crop": "Maize",
+    "disease": "Healthy",
+    "pathogen": null,
+    "symptoms": "No disease or pest symptoms. Leaves are broad, uniformly green, and upright. No feeding damage, spots, or discoloration.",
+    "severity_cues": {
+      "mild": "N/A — plant appears healthy.",
+      "moderate": "N/A — plant appears healthy.",
+      "severe": "N/A — plant appears healthy."
+    },
+    "treatment": "No treatment needed. Continue standard care practices.",
+    "prevention": "Practice crop rotation. Maintain proper fertilization and irrigation. Scout regularly for early pest or disease signs."
+  },
+  "maize_leaf_beetle": {
+    "crop": "Maize",
+    "disease": "Leaf Beetle Damage",
+    "pathogen": "Diabrotica spp. or Chaetocnema spp. (Chrysomelidae)",
+    "symptoms": "Long, narrow feeding scars parallel to leaf veins. Small, elongated holes in leaves creating a 'scratch' pattern. Young plants are most susceptible.",
+    "severity_cues": {
+      "mild": "Light scratching on a few leaves, cosmetic damage only.",
+      "moderate": "Multiple leaves showing feeding scars, some growth reduction.",
+      "severe": "Extensive scarring, heavy feeding on young plants, potential silk clipping affecting pollination."
+    },
+    "treatment": "Apply contact insecticides (pyrethroids) if beetle counts exceed threshold. Seed treatments with neonicotinoids provide early-season protection. Target adult beetles during silk emergence to protect pollination.",
+    "prevention": "Rotate crops (breaks rootworm beetle cycle). Use seed-treated varieties. Monitor beetle populations with yellow sticky traps. Maintain healthy, vigorous plants to tolerate moderate damage."
+  },
+  "maize_leaf_blight": {
+    "crop": "Maize",
+    "disease": "Leaf Blight",
+    "pathogen": "Exserohilum turcicum (Northern Corn Leaf Blight) or Bipolaris maydis (Southern Corn Leaf Blight)",
+    "symptoms": "Long, elliptical, grayish-green to tan lesions on leaves. Northern type: cigar-shaped lesions 3-15 cm long. Southern type: smaller, tan, rectangular lesions. Lesions may coalesce, killing entire leaves.",
+    "severity_cues": {
+      "mild": "A few lesions on lower leaves only.",
+      "moderate": "Lesions on multiple leaf levels, some coalescing.",
+      "severe": "Lesions on ear-leaf and above, extensive leaf death, yield loss expected."
+    },
+    "treatment": "Apply foliar fungicides (azoxystrobin, propiconazole, or pyraclostrobin) at first signs of disease above the ear leaf. Timing is critical — application before tasseling gives best ROI.",
+    "prevention": "Plant resistant hybrids (Ht genes for NCLB resistance). Rotate with non-host crops. Till crop residue to reduce inoculum. Avoid continuous maize planting."
+  },
+  "maize_leaf_spot": {
+    "crop": "Maize",
+    "disease": "Leaf Spot",
+    "pathogen": "Bipolaris zeicola or Phyllosticta maydis",
+    "symptoms": "Small, round to oval, tan or brown spots with dark borders on leaves. Spots are typically 1-5 mm in diameter. May be surrounded by a yellow halo.",
+    "severity_cues": {
+      "mild": "Scattered small spots on lower leaves.",
+      "moderate": "Numerous spots on multiple leaves, some coalescing.",
+      "severe": "Dense spotting across the canopy, significant premature leaf senescence."
+    },
+    "treatment": "Apply foliar fungicides (mancozeb, chlorothalonil, or strobilurins) if disease is progressing rapidly. Usually economical only when lesions appear before silking.",
+    "prevention": "Use resistant hybrids. Rotate crops. Manage residue through tillage. Avoid late planting which increases disease pressure."
+  },
+  "maize_streak_virus": {
+    "crop": "Maize",
+    "disease": "Maize Streak Virus",
+    "pathogen": "Maize Streak Virus (MSV), transmitted by leafhopper (Cicadulina mbila)",
+    "symptoms": "Characteristic parallel streaks of pale yellow along leaf veins. Streaks are narrow and discontinuous. Stunted plant growth. Young plants are most severely affected.",
+    "severity_cues": {
+      "mild": "Faint streaking on one or two leaves, plant growing normally.",
+      "moderate": "Clear streaking on multiple leaves, some growth reduction.",
+      "severe": "Severe stunting, extensive streaking on all leaves, poor ear development."
+    },
+    "treatment": "No chemical cure. Remove and destroy severely infected plants. Control leafhopper vectors with pyrethroid insecticides. Focus management on early-stage protection.",
+    "prevention": "Plant MSV-resistant varieties (most critical control). Adjust planting dates to avoid peak leafhopper activity. Control weeds that host leafhoppers. Use seed treatments with systemic insecticides."
+  },
+  "tomato_healthy": {
+    "crop": "Tomato",
+    "disease": "Healthy",
+    "pathogen": null,
+    "symptoms": "No disease symptoms. Leaves are compound, uniformly green, and slightly fuzzy (pubescent). No spots, wilting, curling, or discoloration.",
+    "severity_cues": {
+      "mild": "N/A — plant appears healthy.",
+      "moderate": "N/A — plant appears healthy.",
+      "severe": "N/A — plant appears healthy."
+    },
+    "treatment": "No treatment needed. Continue standard care practices.",
+    "prevention": "Maintain proper staking and pruning for air circulation. Water at the base to keep foliage dry. Apply preventive fungicides in humid climates."
+  },
+  "tomato_leaf_blight": {
+    "crop": "Tomato",
+    "disease": "Leaf Blight",
+    "pathogen": "Alternaria solani (Early Blight) or Phytophthora infestans (Late Blight)",
+    "symptoms": "Early blight: concentric ring ('target spot') lesions, starting on lower leaves. Late blight: large, water-soaked, dark brown lesions with white mold on undersides in humid conditions.",
+    "severity_cues": {
+      "mild": "A few spots on lower/older leaves only.",
+      "moderate": "Lesions on multiple leaf levels, some defoliation of lower canopy.",
+      "severe": "Rapid spread to upper canopy, fruit infection, potential total crop loss (especially late blight)."
+    },
+    "treatment": "Early blight: apply chlorothalonil, mancozeb, or azoxystrobin. Late blight: apply metalaxyl/mancozeb immediately — late blight spreads extremely fast. Remove and destroy infected plant material. Do not compost infected tissue.",
+    "prevention": "Stake and prune for air circulation. Mulch to prevent soil splash. Water in the morning at soil level. Rotate with non-solanaceous crops for 3+ years. Use resistant varieties."
+  },
+  "tomato_leaf_curl": {
+    "crop": "Tomato",
+    "disease": "Leaf Curl",
+    "pathogen": "Tomato Yellow Leaf Curl Virus (TYLCV), transmitted by whitefly (Bemisia tabaci)",
+    "symptoms": "Upward curling and cupping of leaves. Leaves become leathery and crinkled. Yellow margins on leaves. Stunted plant growth. Flower drop and reduced fruit set.",
+    "severity_cues": {
+      "mild": "Slight curling on newest leaves, plant still productive.",
+      "moderate": "Pronounced curling on multiple leaves, some yellowing, reduced fruit set.",
+      "severe": "Severe stunting, most leaves curled and yellow, minimal or no fruit production."
+    },
+    "treatment": "No cure for infected plants. Remove and destroy severely infected plants. Control whiteflies with imidacloprid, pyriproxyfen, or neem oil. Use reflective mulch to repel whiteflies.",
+    "prevention": "Use TYLCV-resistant tomato varieties. Install fine-mesh insect nets. Use yellow sticky traps. Transplant only healthy seedlings. Maintain a crop-free period to break the virus cycle."
+  },
+  "tomato_septoria_leaf_spot": {
+    "crop": "Tomato",
+    "disease": "Septoria Leaf Spot",
+    "pathogen": "Septoria lycopersici",
+    "symptoms": "Numerous small (2-5 mm), circular spots with dark brown borders and gray centers. Tiny black dots (pycnidia) visible in spot centers under magnification. Starts on lower leaves and moves upward.",
+    "severity_cues": {
+      "mild": "A few spots on the lowest leaves.",
+      "moderate": "Spots on multiple leaf levels, lower leaves beginning to yellow and drop.",
+      "severe": "Extensive defoliation, spots reaching upper canopy, fruit exposed to sunscald."
+    },
+    "treatment": "Apply fungicides containing chlorothalonil, mancozeb, or copper. Begin applications at first sign of disease and repeat every 7-10 days. Remove and destroy infected lower leaves to slow spread.",
+    "prevention": "Mulch around plants to prevent soil splash. Avoid overhead watering. Stake plants for air circulation. Rotate crops — do not plant tomatoes in same spot for 3 years. Remove all plant debris at end of season."
+  },
+  "tomato_verticillium_wilt": {
+    "crop": "Tomato",
+    "disease": "Verticillium Wilt",
+    "pathogen": "Verticillium dahliae",
+    "symptoms": "Yellowing (chlorosis) starts on one side of the leaf or plant ('half-leaf' symptom). Lower leaves wilt and turn brown while upper leaves remain green initially. Brown discoloration of vascular tissue visible when stem is cut.",
+    "severity_cues": {
+      "mild": "Slight yellowing on a few lower leaves, plant otherwise vigorous.",
+      "moderate": "One-sided yellowing and wilting on several branches, reduced vigor.",
+      "severe": "Extensive wilting, most lower leaves dead, stunting, reduced fruit production."
+    },
+    "treatment": "No effective chemical treatment once plants are infected. Remove and destroy infected plants. Solarize soil in affected areas (cover with clear plastic for 4-6 weeks in hot weather). Add beneficial fungi (Trichoderma) to soil.",
+    "prevention": "Plant resistant varieties (look for 'V' designation). Practice long crop rotation (4+ years without solanaceous crops). Maintain soil pH around 6.5-7.0. Avoid overwatering and ensure good drainage."
+  }
+}
