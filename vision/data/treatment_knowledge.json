@@ -142,7 +142,7 @@
     "treatment": "Apply Bt (Bacillus thuringiensis) sprays for early-stage larvae. Use emamectin benzoate or chlorantraniliprole for larger larvae. Apply into the whorl where larvae hide. Handpick larvae in small plots.",
     "prevention": "Plant early to avoid peak armyworm season. Use Bt-maize varieties where available. Scout fields weekly during vegetative stage. Encourage natural enemies (parasitic wasps, birds). Use pheromone traps for monitoring."
   },
-  "maize_grasshopper": {
+  "maize_grasshoper": {
     "crop": "Maize",
     "disease": "Grasshopper Damage",
     "pathogen": "Various grasshopper species (Orthoptera)",
@@ -272,7 +272,7 @@
     "treatment": "Apply fungicides containing chlorothalonil, mancozeb, or copper. Begin applications at first sign of disease and repeat every 7-10 days. Remove and destroy infected lower leaves to slow spread.",
     "prevention": "Mulch around plants to prevent soil splash. Avoid overhead watering. Stake plants for air circulation. Rotate crops — do not plant tomatoes in same spot for 3 years. Remove all plant debris at end of season."
   },
-  "tomato_verticillium_wilt": {
+  "tomato_verticulium_wilt": {
     "crop": "Tomato",
     "disease": "Verticillium Wilt",
     "pathogen": "Verticillium dahliae",
