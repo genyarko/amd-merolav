@@ -1,6 +1,5 @@
 venv/
 runs/
-splits.json
 benchmark_results.json
 *.pt
 *.pth

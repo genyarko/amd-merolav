@@ -1,0 +1,27 @@
+{
+  "class_to_idx": {
+    "cashew_anthracnose": 0,
+    "cashew_gumosis": 1,
+    "cashew_healthy": 2,
+    "cashew_leaf_miner": 3,
+    "cashew_red_rust": 4,
+    "cassava_bacterial_blight": 5,
+    "cassava_brown_spot": 6,
+    "cassava_green_mite": 7,
+    "cassava_healthy": 8,
+    "cassava_mosaic": 9,
+    "maize_fall_armyworm": 10,
+    "maize_grasshoper": 11,
+    "maize_healthy": 12,
+    "maize_leaf_beetle": 13,
+    "maize_leaf_blight": 14,
+    "maize_leaf_spot": 15,
+    "maize_streak_virus": 16,
+    "tomato_healthy": 17,
+    "tomato_leaf_blight": 18,
+    "tomato_leaf_curl": 19,
+    "tomato_septoria_leaf_spot": 20,
+    "tomato_verticulium_wilt": 21
+  },
+  "num_classes": 22
+}
