@@ -248,7 +248,7 @@ def build_app(
 
         # Step 2: Generate response
         if use_vlm and vlm is not None:
-            q = question if question.strip() else "What disease does this plant have and how should I treat it?"
+            q = question.strip() if question else "What disease does this plant have and how should I treat it?"
             response = vlm.respond(image, q)
         else:
             response = knowledge.respond(predictions)
