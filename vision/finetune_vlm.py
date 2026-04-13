@@ -228,7 +228,9 @@ def build_model_and_processor(cfg: dict):
     )
 
     # Freeze the vision encoder — only train the language model via LoRA
-    for param in model.vision_model.parameters():
+    # MllamaForConditionalGeneration wraps MllamaModel as self.model,
+    # which has .vision_model and .language_model
+    for param in model.model.vision_model.parameters():
         param.requires_grad = False
 
     # Apply LoRA
