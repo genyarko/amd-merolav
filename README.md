@@ -10,6 +10,17 @@ Built for the [lablab.ai AMD Hackathon](https://lablab.ai) using an AMD MI300X G
 
 ---
 
+## 🌱 Related submissions (Tracks 2 & 3)
+
+This repository also contains two additional hackathon tracks built on the same MI300X droplet:
+
+- **Track 2** — DINOv2-Large fine-tuned on the CCMT plant disease dataset (97.06% acc / 0.9713 F1). Code in [`track2_finetuning/`](track2_finetuning/), weights at [iamcode6/dinov2-l-ccmt-mi300x](https://huggingface.co/iamcode6/dinov2-l-ccmt-mi300x).
+- **Track 3** — Llama 3.2 11B Vision LoRA adapter for conversational plant disease diagnosis (best val_loss=0.0146). Code in [`vision/`](vision/), adapter at [iamcode6/llama32-vision-ccmt-mi300x](https://huggingface.co/iamcode6/llama32-vision-ccmt-mi300x).
+
+**👉 Live demo (Hugging Face Space):** [merolav-space](https://huggingface.co/spaces/lablab-ai-amd-developer-hackathon/merolav-space) — upload a leaf photo, get a diagnosis with treatment guidance.
+
+---
+
 ## Installation
 
 ### Option 1: pip install (recommended)
