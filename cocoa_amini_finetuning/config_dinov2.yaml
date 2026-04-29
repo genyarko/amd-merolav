@@ -1,0 +1,55 @@
+# Cocoa contamination 3-class — DINOv2-Large fine-tuning on MI300X
+# Backbone:  vit_large_patch14_dinov2.lvd142m  (Track 2 winner — +3.9pp over P100)
+# Dataset :  Amini cocoa contamination dataset (anthracnose / cssvd / healthy)
+#
+# Resolution 224 follows the DINOv2 patch14 native config (Track 2's settings).
+# 3 classes + ~9.7k crops at 224 fits comfortably at large batch on a 192GB MI300X.
+
+seed: 123
+
+data:
+  splits_file: splits.json
+  num_workers: 4
+  pin_memory: true
+  # On-the-fly bbox crop pad. Train pad is sampled uniformly per sample;
+  # eval pad is fixed for reproducibility (matches the Kaggle notebooks' 0.05).
+  pad_frac_train: [0.0, 0.15]
+  pad_frac_eval: 0.05
+
+model:
+  name: vit_large_patch14_dinov2.lvd142m
+  num_classes: 3
+  drop_path_rate: 0.1
+  img_size: 224
+
+train:
+  lr: 1.0e-4
+  epochs: 25             # ~9.7k crops × 25 epochs ≈ steady convergence room
+  batch_size: 256        # safe at 224px on a 192GB MI300X (Track 2 used the same)
+  grad_accum_steps: 1
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  label_smoothing: 0.1
+  mixup_alpha: 0.1
+  cutmix_alpha: 0.5
+  mixup_prob: 0.5
+  grad_clip: 1.0
+  amp_dtype: bfloat16    # MI300X has native bf16
+  compile: false         # turn on once accuracy is in range
+  grad_checkpointing: false  # 224px fits without it
+
+augment:
+  rand_augment_n: 2
+  rand_augment_m: 9
+  random_erasing_p: 0.25
+  horizontal_flip: true
+  vertical_flip: true       # cocoa pods/leaves: no canonical orientation
+
+eval:
+  batch_size: 128
+  tta_rounds: 10
+
+log:
+  every_n_steps: 50
+  checkpoint_dir: runs
+  save_best_metric: val_macro_f1   # cssvd↔healthy is the binding confusion

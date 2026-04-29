@@ -1,0 +1,54 @@
+# Cocoa contamination 3-class — EVA-02-Large fine-tuning on MI300X
+# Backbone:  EVA-02-L ViT-L/14 pretrained MIM-CLIP, fine-tuned IN22k+IN1k @ 448
+# Dataset :  Amini cocoa contamination dataset (anthracnose / cssvd / healthy)
+#
+# Resolution 448 — quadruples per-image memory vs DINOv2 @ 224, so batch_size
+# is scaled down to 64 with grad_checkpointing enabled. Bench first epoch and
+# raise batch to 96 or 128 if VRAM headroom is comfortable.
+
+seed: 123
+
+data:
+  splits_file: splits.json
+  num_workers: 4
+  pin_memory: true
+  pad_frac_train: [0.0, 0.15]
+  pad_frac_eval: 0.05
+
+model:
+  name: eva02_large_patch14_448.mim_m38m_ft_in22k_in1k
+  num_classes: 3
+  drop_path_rate: 0.1
+  img_size: 448
+
+train:
+  lr: 1.0e-4
+  epochs: 20
+  batch_size: 64
+  grad_accum_steps: 1
+  weight_decay: 0.05
+  betas: [0.9, 0.999]
+  label_smoothing: 0.1
+  mixup_alpha: 0.1
+  cutmix_alpha: 0.5
+  mixup_prob: 0.5
+  grad_clip: 1.0
+  amp_dtype: bfloat16
+  compile: false
+  grad_checkpointing: true   # 448px attn maps are big; checkpoint to free VRAM
+
+augment:
+  rand_augment_n: 2
+  rand_augment_m: 9
+  random_erasing_p: 0.25
+  horizontal_flip: true
+  vertical_flip: true
+
+eval:
+  batch_size: 64
+  tta_rounds: 10
+
+log:
+  every_n_steps: 50
+  checkpoint_dir: runs
+  save_best_metric: val_macro_f1
