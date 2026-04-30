@@ -44,12 +44,19 @@ in `train.py` handles it.
 ```bash
 # 1. Kaggle credentials
 mkdir -p ~/.kaggle
-echo '{"username":"merolavtechnology","key":"YOUR_KEY"}' > ~/.kaggle/kaggle.json
+echo '{"username":"YOUR_USER","key":"YOUR_KEY"}' > ~/.kaggle/kaggle.json
 chmod 600 ~/.kaggle/kaggle.json
 
 # 2. Clone repo
 git clone https://github.com/genyarko/amd-merolav.git
 cd amd-merolav/cocoa_amini_finetuning
+
+pip3 install --break-system-packages \
+    --index-url https://download.pytorch.org/whl/rocm6.2 \
+    torch torchvision
+
+    apt install python3.12-venv
+    apt install -y unzip
 
 # 3. Environment (ROCm-aware venv)
 bash setup_rocm.sh
